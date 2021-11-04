@@ -18,7 +18,7 @@ import src.util
 import src.evaluation
 import src.data
 import src.model
-
+from tqdm import tqdm
 
 def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, collator, best_dev_em, checkpoint_path):
 
@@ -43,9 +43,10 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
     loss, curr_loss = 0.0, 0.0
     epoch = 1
     model.train()
+    num_batch = len(train_dataloader)
     while step < opt.total_steps:
         epoch += 1
-        for i, batch in enumerate(train_dataloader):
+        for i, batch in tqdm(enumerate(train_dataloader), total=num_batch):
             step += 1
             (idx, labels, _, context_ids, context_mask) = batch
 
@@ -104,7 +105,8 @@ def evaluate(model, dataset, tokenizer, collator, opt):
     exactmatch = []
     model = model.module if hasattr(model, "module") else model
     with torch.no_grad():
-        for i, batch in enumerate(dataloader):
+        num_batch = len(dataloader)
+        for i, batch in tqdm(enumerate(dataloader), total=num_batch):
             (idx, _, _, context_ids, context_mask) = batch
 
             outputs = model.generate(
