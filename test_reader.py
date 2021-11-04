@@ -18,6 +18,7 @@ from src.options import Options
 import src.data
 import src.evaluation
 import src.model
+from tqdm import tqdm
 
 def evaluate(model, dataset, dataloader, tokenizer, opt):
     loss, curr_loss = 0.0, 0.0
@@ -33,7 +34,8 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
         write_path = Path(opt.checkpoint_dir) / opt.name / 'test_results'
         fw = open(write_path / ('%d.txt'%opt.global_rank), 'a')
     with torch.no_grad():
-        for i, batch in enumerate(dataloader):
+        num_batch = len(dataloader)
+        for i, batch in tqdm(enumerate(dataloader), total=num_batch):
             (idx, _, _, context_ids, context_mask) = batch
 
             if opt.write_crossattention_scores:
