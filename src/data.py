@@ -119,7 +119,7 @@ class Collator(object):
 
         return (index, target_ids, target_mask, passage_ids, passage_masks)
 
-def load_data(data_path=None, global_rank=-1, world_size=-1):
+def load_data(data_path=None, global_rank=-1, world_size=-1, backward=False):
     assert data_path
     if data_path.endswith('.jsonl'):
         data = open(data_path, 'r')
@@ -142,7 +142,26 @@ def load_data(data_path=None, global_rank=-1, world_size=-1):
     if data_path is not None and data_path.endswith('.jsonl'):
         data.close()
 
+    if backward:
+        process_backward(examples)
     return examples
+
+def process_backward(example_lst):
+    for example in example_lst:
+        question = example['question']
+        subject = example['subject']
+        target = example['target']
+        #answer_lst = example['answers']
+        back_question = get_backward_question(question, subject, target)
+        example['subject'] = target
+        example['target'] = subject
+        example['question'] = back_question
+        example['answers'] = [subject]
+
+def get_backward_question(question, subject, target):
+    back_question = question.replace(subject, '<sub_mask>')
+    back_question = target + ', ' + back_question
+    return back_question
 
 class RetrieverCollator(object):
     def __init__(self, tokenizer, passage_maxlength=200, question_maxlength=40):
