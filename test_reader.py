@@ -20,6 +20,8 @@ import src.evaluation
 import src.model
 from tqdm import tqdm
 
+Num_Answers = 5
+
 def evaluate(model, dataset, dataloader, tokenizer, opt):
     loss, curr_loss = 0.0, 0.0
     model.eval()
@@ -30,6 +32,7 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
         model.reset_score_storage() 
     total = 0
     exactmatch = []
+    max_exactmatch = []
     if opt.write_results:
         write_path = Path(opt.checkpoint_dir) / opt.name / 'test_results'
         fw = open(write_path / ('%d.txt'%opt.global_rank), 'a')
@@ -50,18 +53,34 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
             if opt.write_crossattention_scores:
                 crossattention_scores = model.get_crossattention_scores(context_mask.cuda())
 
-            for k, o in enumerate(outputs):
-                ans = tokenizer.decode(o, skip_special_tokens=True)
-                example = dataset.data[idx[k]]
-                if 'answers' in example:
-                    score = src.evaluation.ems(ans, example['answers'])
-                    exactmatch.append(score)
+            assert(len(outputs) == (len(idx) * Num_Answers))
+            outputs = outputs.reshape(len(idx), Num_Answers, -1)
+            for k, answer_code_lst in enumerate(outputs):
+                top_answer_info_lst = []
+                for answer_idx, answer_code in enumerate(answer_code_lst):
+                    ans = tokenizer.decode(answer_code, skip_special_tokens=True)
+                    example = dataset.data[idx[k]]
+                    
+                    answer_info = {
+                        'answer':ans
+                    }
 
-                if opt.write_results:
-                    fw.write(str(example['id']) + "\t" + ans + '\n')
-                if opt.write_crossattention_scores:
-                    for j in range(context_ids.size(1)):
-                        example['ctxs'][j]['score'] = crossattention_scores[k, j].item()
+                    top_answer_info_lst.append(answer_info)
+
+                    if 'answers' in example:
+                        score = src.evaluation.ems(ans, example['answers'])
+                        #exactmatch.append(score)
+                        answer_info['em'] = score
+
+                    if opt.write_results:
+                        fw.write(str(example['id']) + "\t" + ans + '\n')
+                    if opt.write_crossattention_scores:
+                        for j in range(context_ids.size(1)):
+                            example['ctxs'][j]['score'] = crossattention_scores[k, j].item()
+                
+                em_lst = [a['em'] for a in top_answer_info_lst]
+                exactmatch.append(em_lst[0])
+                max_exactmatch.append(np.max(em_lst)) 
 
                 total += 1
             if (i + 1) % opt.eval_print_freq == 0:
@@ -69,10 +88,10 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                 if len(exactmatch) == 0:
                     log += '| no answer to compute scores'
                 else:
-                    log += f' | average = {np.mean(exactmatch):.3f}'
+                    log += f' | average = {np.mean(exactmatch):.3f} | maximal_average = {np.mean(max_exactmatch):.3f}'
                 logger.warning(log)
 
-    logger.warning(f'Process rank:{opt.global_rank}, total {total} | average = {np.mean(exactmatch):.3f}')
+    logger.warning(f'Process rank:{opt.global_rank}, total {total} | average = {np.mean(exactmatch):.3f} | maximal_average = {np.mean(max_exactmatch):.3f} ')
     if opt.is_distributed:
         torch.distributed.barrier()
     score, total = src.util.weighted_average(np.mean(exactmatch), total, opt)

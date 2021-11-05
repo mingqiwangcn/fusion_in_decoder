@@ -6,4 +6,7 @@ python train_reader.py \
         --n_context 50 \
         --name qa_zre_reader \
         --checkpoint_dir output \
-        --eval_freq 5000
+        --total_steps 60000 \
+        --eval_freq 5000 \
+        --save_freq 5000 \
+
