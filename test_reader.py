@@ -48,6 +48,8 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                 input_ids=context_ids.cuda(),
                 attention_mask=context_mask.cuda(),
                 max_length=50,
+                num_beams=Num_Answers,
+                num_return_sequences=Num_Answers
             )
 
             if opt.write_crossattention_scores:
@@ -126,7 +128,8 @@ if __name__ == "__main__":
     eval_examples = src.data.load_data(
         opt.eval_data, 
         global_rank=opt.global_rank, #use the global rank and world size attibutes to split the eval set on multiple gpus
-        world_size=opt.world_size
+        world_size=opt.world_size,
+        backward=opt.backward
     )
     eval_dataset = src.data.Dataset(
         eval_examples, 
