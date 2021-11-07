@@ -1091,7 +1091,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
                 DeprecationWarning,
             )
             labels = kwargs.pop("lm_labels")
-        assert kwargs == {}, f"Unexpected keyword arguments: {list(kwargs.keys())}."
+        #assert kwargs == {}, f"Unexpected keyword arguments: {list(kwargs.keys())}."
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
@@ -1148,6 +1148,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         sequence_output = sequence_output * (self.model_dim ** -0.5)
         lm_logits = self.lm_head(sequence_output)
 
+        if 'opt_info' in kwargs:
+            kwargs['opt_info']['answer_state'] = sequence_output
         decoder_outputs = (lm_logits,) + decoder_outputs[1:]  # Add hidden states and attention if they are here
         if labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-100)

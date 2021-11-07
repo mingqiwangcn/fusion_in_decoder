@@ -53,7 +53,8 @@ class FiDT5(transformers.T5ForConditionalGeneration):
             attention_mask=attention_mask.view(attention_mask.size(0), -1),
             max_length=max_length,
             num_beams=num_beams,
-            num_return_sequences=num_return_sequences
+            num_return_sequences=num_return_sequences,
+            opt_info = {'answer_state':None}
         )
 
     def wrap_encoder(self, use_checkpoint=False):

@@ -516,7 +516,8 @@ class GenerationMixin:
             model_inputs = self.prepare_inputs_for_generation(
                 input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
             )
-
+            
+            model_inputs['opt_info'] = model_specific_kwargs['opt_info']
             outputs = self(**model_inputs)
             next_token_logits = outputs[0][:, -1, :]
 
