@@ -36,7 +36,7 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
         sampler=train_sampler,
         batch_size=opt.per_gpu_batch_size,
         drop_last=True,
-        num_workers=10,
+        #num_workers=10,
         collate_fn=collator
     )
 

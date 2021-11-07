@@ -49,12 +49,13 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
         epoch += 1
         for i, batch in tqdm(enumerate(train_dataloader), total=num_batch):
             step += 1
-            (idx, labels, _, context_ids, context_mask, example_lst) = batch
+            (idx, labels, _, context_ids, context_mask, batch_examples) = batch
 
             train_loss = model(
                 input_ids=context_ids.cuda(),
                 attention_mask=context_mask.cuda(),
-                labels=labels.cuda()
+                labels=labels.cuda(),
+                batch_examples=batch_examples
             )[0]
 
             train_loss.backward()
@@ -126,14 +127,14 @@ def evaluate(model, dataset, tokenizer, collator, opt):
     exactmatch, total = src.util.weighted_average(np.mean(exactmatch), total, opt)
     return exactmatch
 
-def create_model(options):
+def create_model(options, tokenizer):
     f_reader_model = src.model.FiDT5.from_pretrained(opt.f_reader_model_path)
     f_reader_model = f_reader_model.to(opt.device)
-    f_reader = coherence.ForwardReader(f_reader_model)
+    f_reader = coherence.ForwardReader(tokenizer, f_reader_model)
 
     b_reader_model = src.model.FiDT5.from_pretrained(opt.b_reader_model_path)
     b_reader_model = b_reader_model.to(opt.device)
-    b_reader = coherence.BackwardReader(f_reader_model)
+    b_reader = coherence.BackwardReader(tokenizer, f_reader_model)
    
     model = coherence.CoherenceModel(f_reader, b_reader)
     model = model.to(opt.device)
@@ -191,7 +192,7 @@ if __name__ == "__main__":
     )
     eval_dataset = src.data.Dataset(eval_examples, opt.n_context)
 
-    model = create_model(options)
+    model = create_model(options, tokenizer)
     optimizer, scheduler = src.util.set_optim(opt, model)
     step, best_dev_em = 0, 0.0 
     '''
