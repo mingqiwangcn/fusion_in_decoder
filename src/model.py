@@ -46,7 +46,7 @@ class FiDT5(transformers.T5ForConditionalGeneration):
         )
 
     # We need to resize the inputs here, as the generate method expect 2D tensors
-    def generate(self, input_ids, attention_mask, max_length, num_beams=1, num_return_sequences=1):
+    def generate(self, input_ids, attention_mask, max_length, num_beams=1, num_return_sequences=1, opt_info={}):
         self.encoder.n_passages = input_ids.size(1)
         return super().generate(
             input_ids=input_ids.view(input_ids.size(0), -1),
@@ -54,7 +54,7 @@ class FiDT5(transformers.T5ForConditionalGeneration):
             max_length=max_length,
             num_beams=num_beams,
             num_return_sequences=num_return_sequences,
-            opt_info = {'answer_state':None}
+            opt_info = opt_info
         )
 
     def wrap_encoder(self, use_checkpoint=False):
