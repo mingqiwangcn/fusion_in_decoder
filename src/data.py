@@ -52,13 +52,17 @@ class Dataset(torch.utils.data.Dataset):
         else:
             passages, scores = None, None
 
-
+        subject = example.get('subject')
         return {
             'index' : index,
             'question' : question,
             'target' : target,
             'passages' : passages,
-            'scores' : scores
+            'scores' : scores,
+            'example_subject': subject,
+            'example_target': example['target'],
+            'example_question': example['question'],
+            'question_prefix': self.question_prefix
         }
 
     def sort_data(self):

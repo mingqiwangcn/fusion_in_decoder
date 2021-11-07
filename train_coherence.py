@@ -127,7 +127,7 @@ def evaluate(model, dataset, tokenizer, collator, opt):
     exactmatch, total = src.util.weighted_average(np.mean(exactmatch), total, opt)
     return exactmatch
 
-def create_model(options, tokenizer):
+def create_model(options, tokenizer, collator):
     f_reader_model = src.model.FiDT5.from_pretrained(opt.f_reader_model_path)
     f_reader_model = f_reader_model.to(opt.device)
     f_reader = coherence.ForwardReader(tokenizer, f_reader_model)
@@ -136,7 +136,7 @@ def create_model(options, tokenizer):
     b_reader_model = b_reader_model.to(opt.device)
     b_reader = coherence.BackwardReader(tokenizer, f_reader_model)
    
-    model = coherence.CoherenceModel(f_reader, b_reader)
+    model = coherence.CoherenceModel(f_reader, b_reader, collator)
     model = model.to(opt.device)
     return model
 
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     )
     eval_dataset = src.data.Dataset(eval_examples, opt.n_context)
 
-    model = create_model(options, tokenizer)
+    model = create_model(options, tokenizer, collator)
     optimizer, scheduler = src.util.set_optim(opt, model)
     step, best_dev_em = 0, 0.0 
     '''
