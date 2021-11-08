@@ -112,7 +112,7 @@ class CoherenceModel(nn.Module):
                     if 'back_example' not in f_pred:
                         b_example = copy.deepcopy(example)
                         del b_example['src_data_item'] 
-                        self.construct_back_info(b_example, src_data_item)
+                        self.construct_back_info(b_example, src_data_item, f_pred['answer'])
                         f_pred['back_example'] = b_example
                     b_example_lst.append(f_pred['back_example'])
                
@@ -184,12 +184,11 @@ class CoherenceModel(nn.Module):
         state = encoder_outputs[0].mean(dim=1)
         return state
 
-    def construct_back_info(self, b_example, src_data_item):
+    def construct_back_info(self, b_example, src_data_item, pred_answer):
         question = src_data_item['question']
         subject = src_data_item['subject']
-        target = src_data_item['target']
+        target = pred_answer
         back_question = get_backward_question(question, subject, target)
-        b_example['subject'] = target
         b_example['target'] = subject + ' </s>'
         b_example['question'] = src.data.Question_Prefix + " " + back_question
         
