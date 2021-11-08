@@ -20,6 +20,9 @@ import src.data
 import src.model
 import src.coherence_model as coherence
 from tqdm import tqdm
+import os
+import json
+
 
 def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, collator, best_dev_em, checkpoint_path):
 
@@ -84,7 +87,7 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
             curr_loss += train_loss.item()
 
             if step % opt.eval_freq == 0:
-                dev_em = evaluate(model, eval_dataloader, opt)
+                dev_em = evaluate(model, eval_dataloader, opt, checkpoint_path, f"step-{step}")
                 model.train()
                 if opt.is_main:
                     if dev_em > best_dev_em:
@@ -107,10 +110,15 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
             if step > opt.total_steps:
                 break
 
-def evaluate(model, dataloader, opt):
+def evaluate(model, dataloader, opt, checkpoint_path, step_name):
     model.eval()
     total = 0
+    pred_file_name = 'pred_log.jsonl'
+    data_dir = checkpoint_path/'checkpoint'/step_name 
+    os.makedirs(data_dir, exist_ok=True)
+    f_pred_log = open(data_dir/pred_file_name, 'w')
     exactmatch = []
+    log_keys = {'answer', 'em', 'forward_score', 'coherence_score'} 
     with torch.no_grad():
         num_batch = len(dataloader)
         for i, batch in tqdm(enumerate(dataloader), total=num_batch):
@@ -122,15 +130,33 @@ def evaluate(model, dataloader, opt):
                 labels=None,
                 batch_examples=batch_examples
             )
-            
             for b_idx, example in enumerate(batch_examples):
-                top_preds = example['src_data_item']['top_preds']
-                coherence_score_lst = [a['coherence_score'] for a in top_preds]
+                src_data_item = example['src_data_item']
+                top_pred_lst = src_data_item['top_preds']
+                
+                log_pred_lst = []
+                for top_pred in top_pred_lst:
+                    log_pred = {}
+                    for key in log_keys:
+                        log_pred[key] = top_pred[key]
+                    log_pred_lst.append(log_pred)
+
+                data_item_id = src_data_item['id']
+                
+                log_info = {
+                    'id':data_item_id,
+                    'preds':log_pred_lst
+                }
+                
+                f_pred_log.write(json.dumps(log_info) + '\n')
+
+                coherence_score_lst = [a['coherence_score'] for a in log_pred_lst]
                 best_idx = np.argmax(coherence_score_lst)
-                em_score = top_preds[best_idx]['em']
+                em_score = log_pred_lst[best_idx]['em']
                 total += 1
                 exactmatch.append(em_score)
-
+    
+    f_pred_log.close()
     exactmatch, total = src.util.weighted_average(np.mean(exactmatch), total, opt)
     return exactmatch
 
