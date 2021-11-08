@@ -815,13 +815,17 @@ class GenerationMixin:
         # select the best hypotheses
         sent_lengths = input_ids.new(output_batch_size)
         best = []
+        best_score_lst = []
 
         # retrieve best hypotheses
         for i, hypotheses in enumerate(generated_hyps):
             sorted_hyps = sorted(hypotheses.beams, key=lambda x: x[0])
             for j in range(output_num_return_sequences_per_batch):
                 effective_batch_idx = output_num_return_sequences_per_batch * i + j
-                best_hyp = sorted_hyps.pop()[1]
+                best_hyp_info = sorted_hyps.pop()
+                best_hyp_score = best_hyp_info[0]
+                best_score_lst.append(best_hyp_score)
+                best_hyp = best_hyp_info[1]
                 sent_lengths[effective_batch_idx] = len(best_hyp)
                 best.append(best_hyp)
 
@@ -840,6 +844,9 @@ class GenerationMixin:
             # none of the hypotheses have an eos_token
             assert (len(hypo) == max_length for hypo in best)
             decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
+
+        if 'opt_info' in model_specific_kwargs:
+            model_specific_kwargs['opt_info']['pred_scores'] = best_score_lst
 
         return decoded
 

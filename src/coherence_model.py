@@ -15,16 +15,19 @@ class ForwardReader:
         self.model.eval()
 
     def generate(self, input_ids, attention_mask, batch_examples, num_answers=5):
+        opt_info = {}
         with torch.no_grad():
             outputs = self.model.generate(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 max_length=50,
                 num_beams=num_answers,
-                num_return_sequences=num_answers
+                num_return_sequences=num_answers,
+                opt_info=opt_info
             )
         batch_size = len(input_ids)
         assert(len(outputs) == (batch_size * num_answers))
+        pred_scores = torch.tensor(opt_info['pred_scores']).view(batch_size, num_answers)
         outputs = outputs.reshape(batch_size, num_answers, -1)
         for b_idx, answer_code_lst in enumerate(outputs):
             example = batch_examples[b_idx]
@@ -38,6 +41,7 @@ class ForwardReader:
                 
                 f_pred_info = {
                     'answer':pred_answer,
+                    'forward_score':pred_scores[b_idx][answer_idx].item(),
                     'em':int(em_score)
                 }
                 top_pred_info_lst.append(f_pred_info)
