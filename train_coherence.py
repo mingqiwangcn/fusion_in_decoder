@@ -48,7 +48,6 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
     while step < opt.total_steps:
         epoch += 1
         for i, batch in tqdm(enumerate(train_dataloader), total=num_batch):
-            step += 1
             (idx, labels, _, context_ids, context_mask, batch_examples) = batch
 
             train_loss = model(
@@ -56,8 +55,14 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
                 attention_mask=context_mask.cuda(),
                 labels=labels.cuda(),
                 batch_examples=batch_examples
-            )[0]
+            )
 
+            if train_loss is None:
+                model.zero_grad()
+                continue
+                
+            step += 1
+            
             train_loss.backward()
 
             if step % opt.accumulation_steps == 0:
@@ -105,24 +110,25 @@ def evaluate(model, dataset, tokenizer, collator, opt):
     model.eval()
     total = 0
     exactmatch = []
-    model = model.module if hasattr(model, "module") else model
     with torch.no_grad():
         num_batch = len(dataloader)
         for i, batch in tqdm(enumerate(dataloader), total=num_batch):
-            (idx, _, _, context_ids, context_mask) = batch
+            (idx, _, _, context_ids, context_mask, batch_examples) = batch
 
-            outputs = model.generate(
+            model(
                 input_ids=context_ids.cuda(),
                 attention_mask=context_mask.cuda(),
-                max_length=50
+                labels=None,
+                batch_examples=batch_examples
             )
-
-            for k, o in enumerate(outputs):
-                ans = tokenizer.decode(o, skip_special_tokens=True)
-                gold = dataset.get_example(idx[k])['answers']
-                score = src.evaluation.ems(ans, gold)
+            
+            for b_idx, example in enumerate(batch_examples):
+                top_preds = example['top_preds']
+                coherence_score_lst = [a['coherence_score'] for a in top_preds]
+                best_idx = np.argmax(coherence_score_lst)
+                em_score = top_preds[best_idx]['em']
                 total += 1
-                exactmatch.append(score)
+                exactmatch.append(em_score)
 
     exactmatch, total = src.util.weighted_average(np.mean(exactmatch), total, opt)
     return exactmatch

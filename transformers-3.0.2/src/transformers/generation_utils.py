@@ -383,6 +383,8 @@ class GenerationMixin:
             encoder = self.get_encoder()
 
             encoder_outputs: tuple = encoder(input_ids, attention_mask=attention_mask)
+            if 'opt_info' in model_specific_kwargs:
+                model_specific_kwargs['opt_info']['encoder_outputs'] = encoder_outputs
 
         # Expand input ids if num_beams > 1 or num_return_sequences > 1
         if num_return_sequences > 1 or num_beams > 1:

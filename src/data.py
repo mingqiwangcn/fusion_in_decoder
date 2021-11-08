@@ -61,6 +61,7 @@ class Dataset(torch.utils.data.Dataset):
             'scores' : scores,
             'example_subject': subject,
             'example_target': example['target'],
+            'example_answers': example['answers'],
             'example_question': example['question'],
             'question_prefix': self.question_prefix
         }
