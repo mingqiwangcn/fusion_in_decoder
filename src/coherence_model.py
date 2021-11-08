@@ -6,6 +6,7 @@ import src.evaluation
 import copy
 from torch.nn import CrossEntropyLoss
 from src.data import get_backward_question
+import src.data
 
 class ForwardReader:
     def __init__(self, tokenizer, model):
@@ -27,12 +28,13 @@ class ForwardReader:
         outputs = outputs.reshape(batch_size, num_answers, -1)
         for b_idx, answer_code_lst in enumerate(outputs):
             example = batch_examples[b_idx]
+            src_data_item = example['src_data_item']
             top_pred_info_lst = []
             for answer_idx, answer_code in enumerate(answer_code_lst):
                 pred_answer = self.tokenizer.decode(answer_code, skip_special_tokens=True)
                 em_score = None
-                if 'example_answers' in example:
-                    em_score = src.evaluation.ems(pred_answer, example['example_answers'])
+                if 'answers' in src_data_item:
+                    em_score = src.evaluation.ems(pred_answer, src_data_item['answers'])
                 
                 f_pred_info = {
                     'answer':pred_answer,
@@ -40,7 +42,7 @@ class ForwardReader:
                 }
                 top_pred_info_lst.append(f_pred_info)
                  
-            example['top_preds'] = top_pred_info_lst
+            src_data_item['top_preds'] = top_pred_info_lst
 
  
 class BackwardReader:
@@ -87,12 +89,12 @@ class CoherenceModel(nn.Module):
 
 
     def forward(self, input_ids, attention_mask, labels, batch_examples):
-        if not 'top_preds' in batch_examples[0]: 
+        if not 'top_preds' in batch_examples[0]['src_data_item']: 
             self.f_reader.generate(input_ids, attention_mask, batch_examples)
        
         loss_item_lst = [] 
         for example in batch_examples:
-            forward_preds = example['top_preds']
+            forward_preds = example['src_data_item']['top_preds']
             b_example_lst = []
            
             correct_answers = [a for a in forward_preds if a['em'] > 0]
@@ -103,8 +105,8 @@ class CoherenceModel(nn.Module):
             for f_pred in forward_preds:
                 if 'back_example' not in f_pred:
                     b_example = copy.deepcopy(example)
-                    del b_example['top_preds'] 
-                    self.construct_back_info(b_example)
+                    del b_example['src_data_item'] 
+                    self.construct_back_info(b_example, example['src_data_item'])
                     f_pred['back_example'] = b_example
                 b_example_lst.append(f_pred['back_example'])
             
@@ -172,19 +174,13 @@ class CoherenceModel(nn.Module):
         state = encoder_outputs[0].mean(dim=1)
         return state
 
-    def construct_back_info(self, b_example):
-        question = b_example['example_question']
-        subject = b_example['example_subject']
-        target = b_example['example_target']
+    def construct_back_info(self, b_example, src_data_item):
+        question = src_data_item['question']
+        subject = src_data_item['subject']
+        target = src_data_item['target']
         back_question = get_backward_question(question, subject, target)
         b_example['subject'] = target
-        
         b_example['target'] = subject + ' </s>'
-        b_example['question'] = b_example['question_prefix'] + " " + back_question
+        b_example['question'] = src.data.Question_Prefix + " " + back_question
         
-        del b_example['subject']
-        del b_example['example_question']
-        del b_example['example_subject']
-        del b_example['example_target']
-        del b_example['question_prefix']
          

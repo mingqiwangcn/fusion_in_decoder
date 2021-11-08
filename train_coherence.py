@@ -123,7 +123,7 @@ def evaluate(model, dataset, tokenizer, collator, opt):
             )
             
             for b_idx, example in enumerate(batch_examples):
-                top_preds = example['top_preds']
+                top_preds = example['src_data_item']['top_preds']
                 coherence_score_lst = [a['coherence_score'] for a in top_preds]
                 best_idx = np.argmax(coherence_score_lst)
                 em_score = top_preds[best_idx]['em']

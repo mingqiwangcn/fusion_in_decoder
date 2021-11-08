@@ -9,11 +9,13 @@ import random
 import json
 import numpy as np
 
+Question_Prefix = 'question:'
+
 class Dataset(torch.utils.data.Dataset):
     def __init__(self,
                  data,
                  n_context=None,
-                 question_prefix='question:',
+                 question_prefix=Question_Prefix,
                  title_prefix='title:',
                  passage_prefix='context:'):
         self.data = data
@@ -52,18 +54,13 @@ class Dataset(torch.utils.data.Dataset):
         else:
             passages, scores = None, None
 
-        subject = example.get('subject')
         return {
             'index' : index,
             'question' : question,
             'target' : target,
             'passages' : passages,
             'scores' : scores,
-            'example_subject': subject,
-            'example_target': example['target'],
-            'example_answers': example['answers'],
-            'example_question': example['question'],
-            'question_prefix': self.question_prefix
+            'src_data_item': example
         }
 
     def sort_data(self):
