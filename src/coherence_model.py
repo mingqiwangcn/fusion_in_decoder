@@ -94,35 +94,41 @@ class CoherenceModel(nn.Module):
        
         loss_item_lst = [] 
         for example in batch_examples:
-            forward_preds = example['src_data_item']['top_preds']
+            src_data_item = example['src_data_item']
+            forward_preds = src_data_item['top_preds']
             b_example_lst = []
            
             correct_answers = [a for a in forward_preds if a['em'] > 0]
             if labels is not None:
                 if (len(correct_answers) == 0) or (len(correct_answers) == len(forward_preds)):
                     continue
-
-            for f_pred in forward_preds:
-                if 'back_example' not in f_pred:
-                    b_example = copy.deepcopy(example)
-                    del b_example['src_data_item'] 
-                    self.construct_back_info(b_example, example['src_data_item'])
-                    f_pred['back_example'] = b_example
-                b_example_lst.append(f_pred['back_example'])
             
-            b_batch = self.collator(b_example_lst)
-            (_, _, _, context_ids, context_mask, _) = b_batch
-            b_input_ids = context_ids.cuda()
-            b_attention_mask = context_mask.cuda()
-            
-            opt_info = {}
-            self.b_reader.generate(b_input_ids, b_attention_mask, b_example_lst, opt_info=opt_info)
-            
-            back_sub_state = opt_info['answer_state']
-            back_sub_state = back_sub_state.view(back_sub_state.shape[0], -1) 
-            subject_state = self.get_subject_state(opt_info['encoder_outputs'])
-             
-            input_feat = torch.cat([subject_state, back_sub_state, subject_state * back_sub_state], dim=1)
+            if 'coherence_feat' not in src_data_item:
+                for f_pred in forward_preds:
+                    if 'back_example' not in f_pred:
+                        b_example = copy.deepcopy(example)
+                        del b_example['src_data_item'] 
+                        self.construct_back_info(b_example, src_data_item)
+                        f_pred['back_example'] = b_example
+                    b_example_lst.append(f_pred['back_example'])
+               
+                b_batch = self.collator(b_example_lst)
+                (_, _, _, context_ids, context_mask, _) = b_batch
+                b_input_ids = context_ids.cuda()
+                b_attention_mask = context_mask.cuda()
+                
+                opt_info = {}
+                self.b_reader.generate(b_input_ids, b_attention_mask, b_example_lst, opt_info=opt_info)
+                
+                back_sub_state = opt_info['answer_state']
+                back_sub_state = back_sub_state.view(back_sub_state.shape[0], -1) 
+                subject_state = self.get_subject_state(opt_info['encoder_outputs'])
+                 
+                input_feat = torch.cat([subject_state, back_sub_state, subject_state * back_sub_state], dim=1)
+                src_data_item['coherence_feat'] = input_feat 
+            else:
+                input_feat = src_data_item['coherence_feat']
+                 
             match_scores = self.sub_match_f(input_feat)
            
             if labels is not None: 

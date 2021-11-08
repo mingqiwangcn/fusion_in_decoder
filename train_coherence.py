@@ -41,6 +41,15 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
         collate_fn=collator
     )
 
+    eval_sampler = SequentialSampler(eval_dataset)
+    eval_dataloader = DataLoader(eval_dataset,
+        sampler=eval_sampler,
+        batch_size=opt.per_gpu_batch_size,
+        drop_last=False,
+        #num_workers=10,
+        collate_fn=collator
+    )
+
     loss, curr_loss = 0.0, 0.0
     epoch = 1
     model.train()
@@ -75,7 +84,7 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
             curr_loss += train_loss.item()
 
             if step % opt.eval_freq == 0:
-                dev_em = evaluate(model, eval_dataset, tokenizer, collator, opt)
+                dev_em = evaluate(model, eval_dataloader, opt)
                 model.train()
                 if opt.is_main:
                     if dev_em > best_dev_em:
@@ -98,15 +107,7 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
             if step > opt.total_steps:
                 break
 
-def evaluate(model, dataset, tokenizer, collator, opt):
-    sampler = SequentialSampler(dataset)
-    dataloader = DataLoader(dataset,
-        sampler=sampler,
-        batch_size=opt.per_gpu_batch_size,
-        drop_last=False,
-        num_workers=10,
-        collate_fn=collator
-    )
+def evaluate(model, dataloader, opt):
     model.eval()
     total = 0
     exactmatch = []
