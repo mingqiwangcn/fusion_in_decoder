@@ -20,7 +20,7 @@ import src.evaluation
 import src.model
 from tqdm import tqdm
 
-Num_Answers = 1
+Num_Answers = 5
 
 def evaluate(model, dataset, dataloader, tokenizer, opt):
     loss, curr_loss = 0.0, 0.0
