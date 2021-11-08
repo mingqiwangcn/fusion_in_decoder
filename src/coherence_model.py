@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import os
 from src.data import Collator
 import src.evaluation
 import copy
@@ -57,6 +58,7 @@ class BackwardReader:
                 opt_info=opt_info
             )
 
+
 class CoherenceCollator(Collator):
     def __init__(self, text_maxlength, tokenizer, answer_maxlength=20):
         super(CoherenceCollator, self).__init__(text_maxlength, tokenizer, answer_maxlength=answer_maxlength)
@@ -65,6 +67,7 @@ class CoherenceCollator(Collator):
         outputs = super().__call__(batch)
         coherence_outputs = outputs + (batch,)
         return coherence_outputs
+
 
 class CoherenceModel(nn.Module):
     def __init__(self, f_reader, b_reader, collator):
@@ -81,6 +84,7 @@ class CoherenceModel(nn.Module):
                         nn.Dropout(),
                         nn.Linear(D, 1)
                         )
+
 
     def forward(self, input_ids, attention_mask, labels, batch_examples):
         if not 'top_preds' in batch_examples[0]: 
@@ -134,21 +138,20 @@ class CoherenceModel(nn.Module):
             total_loss = torch.cat(loss_item_lst)
             loss = total_loss.mean()
             return loss
+        
              
-   
     def compute_loss(self, match_scores, forward_preds):
         loss_fct = CrossEntropyLoss()
         pos_idxes = []
         neg_idxes = []
-        
+
         for idx, pred in enumerate(forward_preds):
             if pred['em'] > 0:
                 pos_idxes.append(idx)
             else:
                 neg_idxes.append(idx)
-            
-        score_lst = []
         
+        score_lst = []
         for pos_idx in pos_idxes:
             idx_lst = [pos_idx] + neg_idxes
             item_score = match_scores[idx_lst].view(1, -1)
@@ -158,6 +161,12 @@ class CoherenceModel(nn.Module):
         
         loss = loss_fct(batch_item_score, batch_item_labels)
         return loss
+
+
+    def save_pretrained(self, model_path):
+        file_name = 'coherence_model.bin'
+        file_path = os.path.join(model_path, file_name)  
+        torch.save(self.state_dict(), file_path)
 
     def get_subject_state(self, encoder_outputs):
         state = encoder_outputs[0].mean(dim=1)
