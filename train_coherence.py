@@ -74,6 +74,9 @@ def train(model, optimizer, scheduler, step, train_dataset, eval_dataset, opt, c
                 continue
                 
             step += 1
+          
+            if step % 10 == 0: 
+                print('step = %d' % step)
             
             train_loss.backward()
 
@@ -160,16 +163,21 @@ def evaluate(model, dataloader, opt, checkpoint_path, step_name):
     exactmatch, total = src.util.weighted_average(np.mean(exactmatch), total, opt)
     return exactmatch
 
-def create_model(options, tokenizer, collator):
+def create_model(tokenizer, collator):
     f_reader_model = src.model.FiDT5.from_pretrained(opt.f_reader_model_path)
     f_reader_model = f_reader_model.to(opt.device)
     f_reader = coherence.ForwardReader(tokenizer, f_reader_model)
 
     b_reader_model = src.model.FiDT5.from_pretrained(opt.b_reader_model_path)
     b_reader_model = b_reader_model.to(opt.device)
-    b_reader = coherence.BackwardReader(tokenizer, f_reader_model)
+    b_reader = coherence.BackwardReader(tokenizer, b_reader_model)
    
     model = coherence.CoherenceModel(f_reader, b_reader, collator)
+    if opt.pretrained_model is not None:
+        pretrained_model_path = os.path.join(opt.pretrained_model, 'coherence_model.bin')
+        state_dict = torch.load(pretrained_model_path, map_location=opt.device)
+        model.load_state_dict(state_dict)
+
     model = model.to(opt.device)
     return model
 
@@ -180,6 +188,7 @@ if __name__ == "__main__":
 
     options.parser.add_argument('--f_reader_model_path', type=str)
     options.parser.add_argument('--b_reader_model_path', type=str)
+    options.parser.add_argument('--pretrained_model', type=str)
 
     opt = options.parse()
     #opt = options.get_options(use_reader=True, use_optim=True)
@@ -210,13 +219,16 @@ if __name__ == "__main__":
     tokenizer = transformers.T5Tokenizer.from_pretrained(model_name)
     collator = coherence.CoherenceCollator(opt.text_maxlength, tokenizer, answer_maxlength=opt.answer_maxlength)
 
-    # use golbal rank and world size to split the eval set on multiple gpus
-    train_examples = src.data.load_data(
-        opt.train_data, 
-        global_rank=opt.global_rank, 
-        world_size=opt.world_size
-    )
-    train_dataset = src.data.Dataset(train_examples, opt.n_context)
+    is_training = (opt.pretrained_model is None)
+    if is_training: 
+        # use golbal rank and world size to split the eval set on multiple gpus
+        train_examples = src.data.load_data(
+            opt.train_data, 
+            global_rank=opt.global_rank, 
+            world_size=opt.world_size
+        )
+        train_dataset = src.data.Dataset(train_examples, opt.n_context)
+    
     # use golbal rank and world size to split the eval set on multiple gpus
     eval_examples = src.data.load_data(
         opt.eval_data,
@@ -225,7 +237,8 @@ if __name__ == "__main__":
     )
     eval_dataset = src.data.Dataset(eval_examples, opt.n_context)
 
-    model = create_model(options, tokenizer, collator)
+    model = create_model(tokenizer, collator)
+    
     optimizer, scheduler = src.util.set_optim(opt, model)
     step, best_dev_em = 0, 0.0 
     '''
@@ -258,15 +271,27 @@ if __name__ == "__main__":
         )
 
     logger.info("Start training")
-    train(
-        model,
-        optimizer,
-        scheduler,
-        step,
-        train_dataset,
-        eval_dataset,
-        opt,
-        collator,
-        best_dev_em,
-        checkpoint_path
-    )
+    if is_training:
+        train(
+            model,
+            optimizer,
+            scheduler,
+            step,
+            train_dataset,
+            eval_dataset,
+            opt,
+            collator,
+            best_dev_em,
+            checkpoint_path
+        )
+    else:
+        eval_sampler = SequentialSampler(eval_dataset)
+        eval_dataloader = DataLoader(eval_dataset,
+            sampler=eval_sampler,
+            batch_size=opt.per_gpu_batch_size,
+            drop_last=False,
+            #num_workers=10,
+            collate_fn=collator
+        )
+        evaluate(model, eval_dataloader, opt, checkpoint_path, f"step-0")
+

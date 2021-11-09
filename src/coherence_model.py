@@ -49,20 +49,21 @@ class ForwardReader:
             src_data_item['top_preds'] = top_pred_info_lst
 
  
-class BackwardReader:
+class BackwardReader(nn.Module):
     def __init__(self, tokenizer, model):
+        super(BackwardReader, self).__init__()
         self.tokenizer = tokenizer
         self.model = model
-        self.model.eval()
+        #self.model.eval()
 
     def generate(self, input_ids, attention_mask, batch_examples, opt_info=None):
-        with torch.no_grad():
-            outputs = self.model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                max_length=50,
-                opt_info=opt_info
-            )
+        #with torch.no_grad():
+        outputs = self.model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            max_length=50,
+            opt_info=opt_info
+        )
 
 
 class CoherenceCollator(Collator):
@@ -95,7 +96,8 @@ class CoherenceModel(nn.Module):
     def forward(self, input_ids, attention_mask, labels, batch_examples):
         if not 'top_preds' in batch_examples[0]['src_data_item']: 
             self.f_reader.generate(input_ids, attention_mask, batch_examples)
-       
+            #torch.cuda.empty_cache()
+             
         loss_item_lst = [] 
         for example in batch_examples:
             src_data_item = example['src_data_item']
@@ -107,7 +109,7 @@ class CoherenceModel(nn.Module):
                 if (len(correct_answers) == 0) or (len(correct_answers) == len(forward_preds)):
                     continue
             
-            if 'coherence_feat' not in src_data_item:
+            if True: #'coherence_feat' not in src_data_item:
                 for f_pred in forward_preds:
                     if 'back_example' not in f_pred:
                         b_example = copy.deepcopy(example)
@@ -130,8 +132,8 @@ class CoherenceModel(nn.Module):
                  
                 input_feat = torch.cat([subject_state, back_sub_state, subject_state * back_sub_state], dim=1)
                 src_data_item['coherence_feat'] = input_feat 
-            else:
-                input_feat = src_data_item['coherence_feat']
+            #else:
+            #    input_feat = src_data_item['coherence_feat']
                  
             match_scores = self.sub_match_f(input_feat)
            
