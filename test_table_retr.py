@@ -32,7 +32,7 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
     model.reset_score_storage() 
     
     
-    table_pred_results = []
+    table_pred_results = {1:[], 5:[]}
     count = 0
     with torch.no_grad():
         num_batch = len(dataloader)
@@ -83,13 +83,18 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                 best_idx = np.argmax(pred_table_score_lst)
                 pred_table = pred_table_id_lst[best_idx]
                 '''
-                best_passage_idx = passage_scores.argmax().item() 
-               
-                pred_table = example['ctxs'][best_passage_idx]['tag']['table_id']
+
+                top_m = 5
+                score_array = passage_scores.cpu().numpy()
+                top_passage_idxes = np.argpartition(-score_array, range(top_m))[:top_m]
                 
-                gold_table_lst = example['table_id_lst']
-                table_found = int(pred_table in gold_table_lst)
-                table_pred_results.append(table_found)
+                for threshold in [1, top_m]:
+                    top_threshold_idxes = top_passage_idxes[:threshold]
+                    pred_table_lst = [example['ctxs'][a]['tag']['table_id']  for a in top_threshold_idxes]
+                    gold_table_lst = example['table_id_lst']
+                    table_found_flags = [int(a in gold_table_lst) for a in pred_table_lst]
+                    table_found = max(table_found_flags)
+                    table_pred_results[threshold].append(table_found)
                 
                 count += 1
                 if count % 10 == 0:
@@ -98,8 +103,11 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
     show_precision(count, table_pred_results)
 
 def show_precision(count, table_pred_results):
-    precision = np.mean(table_pred_results) * 100
-    logger.info('count = %d, p@1 = %.2f' % (count, precision))
+    str_info = 'count = %d' % count
+    for threshold in table_pred_results:
+        precision = np.mean(table_pred_results[threshold]) * 100
+        str_info += 'p@%d = %.2f ' % (threshold, precision)
+    logger.info(str_info)
 
 if __name__ == "__main__":
     options = Options()

@@ -40,7 +40,7 @@ class Options():
         self.parser.add_argument('--eval_data', type=str, default='none', help='path of eval data')
         self.parser.add_argument('--model_size', type=str, default='base')
         self.parser.add_argument('--use_checkpoint', action='store_true', help='use checkpoint in the encoder')
-        self.parser.add_argument('--text_maxlength', type=int, default=200, 
+        self.parser.add_argument('--text_maxlength', type=int, default=300, 
                         help='maximum number of tokens in text segments (question+passage)')
         self.parser.add_argument('--answer_maxlength', type=int, default=-1, 
                         help='maximum number of tokens used to train the model, no truncation if -1')
@@ -84,9 +84,9 @@ class Options():
                         help="Main port (for multi-node SLURM jobs)")
         self.parser.add_argument('--seed', type=int, default=0, help="random seed for initialization")
         # training parameters
-        self.parser.add_argument('--eval_freq', type=int, default=500,
+        self.parser.add_argument('--eval_freq', type=int, default=2000,
                         help='evaluate model every <eval_freq> steps during training')
-        self.parser.add_argument('--save_freq', type=int, default=5000,
+        self.parser.add_argument('--save_freq', type=int, default=2000,
                         help='save model every <save_freq> steps during training')
         self.parser.add_argument('--eval_print_freq', type=int, default=1000,
                         help='print intermdiate results of evaluation every <eval_print_freq> steps')
