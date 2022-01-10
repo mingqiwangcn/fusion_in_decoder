@@ -70,28 +70,16 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                 
                 for threshold in [1, top_m]:
                     top_threshold_idxes = top_passage_idxes[:threshold]
-                    pred_table_lst = [example['ctxs'][a]['tag']['table_id']  for a in top_threshold_idxes]
-                    gold_table_lst = example['table_id_lst']
-                    table_found_flags = [int(a in gold_table_lst) for a in pred_table_lst]
-                    table_found = max(table_found_flags)
-                    
                     if threshold == 1:
-                        print(len(example['ctxs']), len(passage_scores))
-                        write_preds(example['id'], pred_table_lst[0], gold_table_lst) 
+                        top_p_id = top_threshold_idxes[0]
+                        write_preds(example['id'], top_p_id, example['ctxs'][top_p_id]['text']) 
 
-                    table_pred_results[threshold].append(table_found)
-                
-                count += 1
-                if count % 10 == 0:
-                    show_precision(count, table_pred_results)
-         
-    show_precision(count, table_pred_results)
 
-def write_preds(qid, top_table_id, gold_table_lst):
+def write_preds(qid, top_passage_idx, top_passage):
     out_item = {
         'qid':qid,
-        'top_table_id':top_table_id,
-        'gold_table_lst':gold_table_lst
+        'top_passage_id':int(top_passage_idx),
+        'top_passage':top_passage
     }
     f_o_preds.write(json.dumps(out_item) + '\n')
 

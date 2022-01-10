@@ -107,9 +107,30 @@ class FiDT5(transformers.T5ForConditionalGeneration):
         https://arxiv.org/abs/2012.04584.
         """
         scores = []
+        answer_states = []
+        query_passage_states = []
         n_passages = context_mask.size(1)
         for mod in self.decoder.block:
             scores.append(mod.layer[1].EncDecAttention.score_storage)
+            
+            score_answer_state = mod.layer[1].EncDecAttention.score_input_1
+            bsz, num_answers, emb_size = score_answer_state.size()
+            score_answer_state = score_answer_state.view(bsz, 1, num_answers, emb_size) 
+            answer_states.append(score_answer_state)
+
+            score_query_passage_state = mod.layer[1].EncDecAttention.score_input_2
+            bsz, num_passages, emb_size = score_query_passage_state.size()  
+            score_query_passage_state = score_query_passage_state.view(bsz, 1, num_passages, emb_size)
+            query_passage_states.append(score_query_passage_state)
+
+        answer_states = torch.cat(answer_states, dim=1)
+        query_passage_states = torch.cat(query_passage_states, dim=1)
+
+        score_input_states = {
+            'answer_states':answer_states,
+            'query_passage_states':query_passage_states
+        }
+
         scores = torch.cat(scores, dim=2)
         bsz, n_heads, n_layers, _ = scores.size()
         # batch_size, n_head, n_layers, n_passages, text_maxlength
@@ -118,7 +139,7 @@ class FiDT5(transformers.T5ForConditionalGeneration):
         scores = scores.sum(dim=[1, 2, 4])
         ntokens = context_mask.sum(dim=[2]) * n_layers * n_heads
         scores = scores/ntokens
-        return scores
+        return scores, score_input_states 
 
     def overwrite_forward_crossattention(self):
         """
@@ -235,6 +256,8 @@ def cross_attention_forward(
 
     if self.score_storage is None:
         self.score_storage = scores
+        self.score_input_1 = input
+        self.score_input_2 = kv
 
     attn = F.softmax(scores.float(), dim=-1).type_as(scores)
     attn = F.dropout(attn, p=self.dropout, training=self.training)
