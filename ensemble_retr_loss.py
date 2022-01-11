@@ -5,7 +5,7 @@ import numpy as np
 
 class EnsembleRetrLoss(nn.Module):
     def __init__(self, device):
-        super(EnsenmbleRetrLoss, self).__init__()
+        super(EnsembleRetrLoss, self).__init__()
         self.ce_loss = nn.CrossEntropyLoss()
 
     def forward(self, batch_score, batch_answers):
@@ -13,7 +13,7 @@ class EnsembleRetrLoss(nn.Module):
         batch_num = 0
         
         for b_idx, item_scores in enumerate(batch_score):
-            answer_scores = torch.cat(item_scores)    
+            answer_scores = item_scores  
             
             item_answer_lst = batch_answers[b_idx]
             answer_lst = []

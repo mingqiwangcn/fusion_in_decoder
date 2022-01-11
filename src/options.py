@@ -46,8 +46,7 @@ class Options():
                         help='maximum number of tokens used to train the model, no truncation if -1')
         self.parser.add_argument('--no_title', action='store_true', 
                         help='article titles not included in passages')
-        self.parser.add_argument('--n_context', type=int, default=1)
-        self.parser.add_argument('--backward', type=int, default=0)
+        self.parser.add_argument('--n_context', type=int)
 
     def add_retriever_options(self):
         self.parser.add_argument('--train_data', type=str, default='none', help='path of train data')
@@ -72,6 +71,11 @@ class Options():
         self.parser.add_argument('--name', type=str, default='experiment_name', help='name of the experiment')
         self.parser.add_argument('--checkpoint_dir', type=str, default='./checkpoint/', help='models are saved here')
         self.parser.add_argument('--model_path', type=str, default='none', help='path for retraining')
+        
+        self.parser.add_argument('--do_train', action="store_true")
+        self.parser.add_argument('--cuda', type=int, default=0)
+        self.parser.add_argument('--train_qas_file', type=str)
+        self.parser.add_argument('--eval_qas_file', type=str)
 
         # dataset parameters
         self.parser.add_argument("--per_gpu_batch_size", default=1, type=int, 
