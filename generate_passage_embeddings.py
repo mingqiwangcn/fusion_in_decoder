@@ -22,7 +22,10 @@ import src.model
 import src.data
 import src.util
 import src.slurm
+import sys
+from tqdm import tqdm
 
+csv.field_size_limit(sys.maxsize)
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +36,9 @@ def embed_passages(opt, passages, model, tokenizer):
     dataloader = DataLoader(dataset, batch_size=batch_size, drop_last=False, num_workers=10, collate_fn=collator)
     total = 0
     allids, allembeddings = [], []
+    num_batch = len(dataloader)
     with torch.no_grad():
-        for k, (ids, text_ids, text_mask) in enumerate(dataloader):
+        for k, (ids, text_ids, text_mask) in tqdm(enumerate(dataloader), total=num_batch):
             embeddings = model.embed_text(
                 text_ids=text_ids.cuda(), 
                 text_mask=text_mask.cuda(), 

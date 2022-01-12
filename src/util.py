@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import torch.distributed as dist
 import csv
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +217,7 @@ def load_passages(path):
     passages = []
     with open(path) as fin:
         reader = csv.reader(fin, delimiter='\t')
-        for k, row in enumerate(reader):
+        for k, row in tqdm(enumerate(reader)):
             if not row[0] == 'id':
                 try:
                     passages.append((row[0], row[1], row[2]))
