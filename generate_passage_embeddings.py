@@ -88,7 +88,7 @@ def main(opt):
     output_path.parent.mkdir(parents=True, exist_ok=True) 
     logger.info(f'Saving {len(allids)} passage embeddings to {save_file}')
     with open(save_file, mode='wb') as f:
-        pickle.dump((allids, allembeddings), f)
+        pickle.dump((allids, allembeddings), f, protocol=4)
 
     logger.info(f'Total passages processed {len(allids)}. Written to {save_file}.')
 
