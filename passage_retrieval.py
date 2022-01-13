@@ -123,7 +123,7 @@ def main(opt):
     model_class = src.model.Retriever
     model = model_class.from_pretrained(opt.model_path)
 
-    model.cuda()
+    #model.cuda()
     model.eval()
     if not opt.no_fp16:
         model = model.half()
@@ -152,7 +152,8 @@ def main(opt):
     top_ids_and_scores = index.search_knn(questions_embedding, args.n_docs) 
     logger.info(f'Search time: {time.time()-start_time_retrieval:.1f} s.')
 
-    passages = src.util.load_passages(args.passages)
+    #passages = src.util.load_passages(args.passages)
+    passages = read_passages(args.passages)
     passages = {x[0]:(x[1], x[2]) for x in passages}
 
     add_passages(data, passages, top_ids_and_scores)
@@ -164,6 +165,13 @@ def main(opt):
         json.dump(data, fout, indent=4)
     logger.info(f'Saved results to {args.output_path}')
 
+def read_passages(data_file):
+    passages = []
+    passage_file_lst = glob.glob(data_file)
+    for passage_file in passage_file_lst:
+        part_passages = src.util.load_passages(passage_file)
+        passages.extend(part_passages)
+    return passages
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
