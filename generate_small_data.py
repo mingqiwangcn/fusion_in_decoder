@@ -55,7 +55,8 @@ def gen_passage_embs(passage_info_dict):
                 emb_item = {
                     'p_id':p_id,
                     'emb':p_emb,
-                    'tag':meta_info['tag']
+                    'tag':meta_info['tag'],
+                    'passage':meta_info['passage']
                 }
                 cell_items.append(emb_item)
 
@@ -66,6 +67,8 @@ def gen_passage_embs(passage_info_dict):
         pickle.dump(out_emb_data, f_o, protocol=4)
 
     save_meta(updated_meta_dict)
+    
+    gen_passages(updated_meta_dict)
 
 def get_all_id_embs(emb_info_dict):
     updated_meta_dict = {}
@@ -79,7 +82,8 @@ def get_all_id_embs(emb_info_dict):
             for emb_item in cell_items:
                 p_id_lst.append(new_p_id)
                 meta_item = {
-                    'tag':emb_item['tag']
+                    'tag':emb_item['tag'],
+                    'passage':emb_item['passage']
                 }
                 updated_meta_dict[new_p_id] = meta_item
                 emb_lst.append(emb_item['emb'])
@@ -88,13 +92,13 @@ def get_all_id_embs(emb_info_dict):
     result_ems = np.vstack(emb_lst)
     return p_id_lst, result_ems, updated_meta_dict
 
-def gen_passages(passage_info_dict):
+def gen_passages(meta_dict):
     out_passage_file = './data/nq_tables_passages/passage_small.tsv'
     with open(out_passage_file, 'w') as f_o_p:
         csv_writer = csv.writer(f_o_p, delimiter='\t')
         csv_writer.writerow(['id', 'text', 'title'])
-        for passage_id in tqdm(passage_info_dict):
-            csv_writer.writerow([passage_id, passage_info_dict[passage_id]['passage'], ''])
+        for passage_id in tqdm(meta_dict):
+            csv_writer.writerow([passage_id, meta_dict[passage_id]['passage'], ''])
 
 def save_meta(meta_dict):
     out_file = './data/passage_meta_small.jsonl'
@@ -112,7 +116,6 @@ def main():
     table_set = read_tables(table_id_file)
     passage_info_dict = read_passage_info(table_set)
     gen_passage_embs(passage_info_dict)
-    gen_passages(passage_info_dict)
 
 if __name__ == '__main__':
     main()
