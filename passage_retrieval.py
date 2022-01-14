@@ -26,12 +26,15 @@ import src.index
 from torch.utils.data import DataLoader
 
 from src.evaluation import calculate_matches
+import sys
+
+csv.field_size_limit(sys.maxsize)
 
 logger = logging.getLogger(__name__)
 
 def embed_questions(opt, data, model, tokenizer):
     batch_size = opt.per_gpu_batch_size * opt.world_size
-    dataset = src.data.Dataset(data)
+    dataset = src.data.Dataset(data, n_context=1)
     collator = src.data.Collator(opt.question_maxlength, tokenizer)
     dataloader = DataLoader(dataset, batch_size=batch_size, drop_last=False, num_workers=10, collate_fn=collator)
     model.eval()
@@ -123,7 +126,7 @@ def main(opt):
     model_class = src.model.Retriever
     model = model_class.from_pretrained(opt.model_path)
 
-    #model.cuda()
+    model.cuda()
     model.eval()
     if not opt.no_fp16:
         model = model.half()
