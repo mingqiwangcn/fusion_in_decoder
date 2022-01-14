@@ -25,6 +25,7 @@ import json
 Num_Answers = 1
 
 def evaluate(model, dataset, dataloader, tokenizer, opt):
+    passage_info_dict = read_passage_info()
     loss, curr_loss = 0.0, 0.0
     model.eval()
     if hasattr(model, "module"):
@@ -70,7 +71,8 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                 
                 for threshold in [1, top_m]:
                     top_threshold_idxes = top_passage_idxes[:threshold]
-                    pred_table_lst = [example['ctxs'][a]['tag']['table_id']  for a in top_threshold_idxes]
+                    p_id_lst = [example['ctxs'][a]['id'] for a in top_threshold_idxes]
+                    pred_table_lst = [passage_info_dict[int(a)]['tag']['table_id'] for a in p_id_lst]
                     gold_table_lst = example['table_id_lst']
                     table_found_flags = [int(a in gold_table_lst) for a in pred_table_lst]
                     table_found = max(table_found_flags)
@@ -86,6 +88,16 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                     show_precision(count, table_pred_results)
          
     show_precision(count, table_pred_results)
+
+def read_passage_info():
+    data_file = './data/passage_info_small.jsonl'
+    passage_info_dict = {}
+    with open(data_file) as f:
+        for line in tqdm(f):
+            item = json.loads(line)
+            p_id = item['faiss_index_id']
+            passage_info_dict[p_id] = item
+    return passage_info_dict
 
 def write_preds(qid, top_table_id, gold_table_lst):
     out_item = {
@@ -133,7 +145,6 @@ if __name__ == "__main__":
         opt.eval_data, 
         global_rank=opt.global_rank, #use the global rank and world size attibutes to split the eval set on multiple gpus
         world_size=opt.world_size,
-        backward=opt.backward
     )
     eval_dataset = src.data.Dataset(
         eval_examples, 
