@@ -139,7 +139,7 @@ class FiDT5(transformers.T5ForConditionalGeneration):
         scores = scores.sum(dim=[1, 2, 4])
         ntokens = context_mask.sum(dim=[2]) * n_layers * n_heads
         scores = scores/ntokens
-        return scores, score_input_states 
+        return scores #, score_input_states 
 
     def overwrite_forward_crossattention(self):
         """
