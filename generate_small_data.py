@@ -14,7 +14,7 @@ def read_tables(data_file):
     table_set = set(table_id_lst)
     return table_set
 
-def read_passage_info(table_set):
+def read_passage_info():
     data_file = './data/graph_passages.json'
     passage_info_dict = {}
     with open(data_file) as f:
@@ -24,8 +24,8 @@ def read_passage_info(table_set):
             passage_id += 1
             tag = item['tag']
             table_id = tag['table_id']
-            if table_id in table_set:
-                passage_info_dict[passage_id] = item 
+            #if table_id in table_set:
+            passage_info_dict[passage_id] = item 
 
     return passage_info_dict
 
@@ -61,7 +61,7 @@ def gen_passage_embs(passage_info_dict):
                 cell_items.append(emb_item)
 
     new_p_id_lst, result_ems, updated_meta_dict = get_all_id_embs(emb_info_dict)
-    out_emb_file = './data/nq_tables_passage_embeddings/nq_tables_passage_embeddings_small' 
+    out_emb_file = './data/nq_tables_passage_embeddings/nq_tables_passage_embeddings_all' 
     out_emb_data = (new_p_id_lst, result_ems)
     with open(out_emb_file, 'wb') as f_o:
         pickle.dump(out_emb_data, f_o, protocol=4)
@@ -93,7 +93,7 @@ def get_all_id_embs(emb_info_dict):
     return p_id_lst, result_ems, updated_meta_dict
 
 def gen_passages(meta_dict):
-    out_passage_file = './data/nq_tables_passages/passage_small.tsv'
+    out_passage_file = './data/nq_tables_passages/passage_all.tsv'
     with open(out_passage_file, 'w') as f_o_p:
         csv_writer = csv.writer(f_o_p, delimiter='\t')
         csv_writer.writerow(['id', 'text', 'title'])
@@ -101,7 +101,7 @@ def gen_passages(meta_dict):
             csv_writer.writerow([passage_id, meta_dict[passage_id]['passage'], ''])
 
 def save_meta(meta_dict):
-    out_file = './data/passage_meta_small.jsonl'
+    out_file = './data/passage_meta_all.jsonl'
     with open(out_file, 'w') as f_o:
         for p_id in tqdm(meta_dict):
             item = meta_dict[p_id]
@@ -112,9 +112,10 @@ def save_meta(meta_dict):
             f_o.write(json.dumps(out_item) + '\n')
  
 def main():
-    table_id_file = '/home/cc/data/nq_tables/tables/table_id_small.jsonl'
-    table_set = read_tables(table_id_file)
-    passage_info_dict = read_passage_info(table_set)
+    #table_id_file = '/home/cc/data/nq_tables/tables/table_id_small.jsonl'
+    #table_set = read_tables(table_id_file)
+    table_set = None
+    passage_info_dict = read_passage_info()
     gen_passage_embs(passage_info_dict)
 
 if __name__ == '__main__':
