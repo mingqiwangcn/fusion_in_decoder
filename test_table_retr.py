@@ -90,12 +90,12 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
     show_precision(count, table_pred_results)
 
 def read_passage_info():
-    data_file = './data/passage_info_small.jsonl'
+    data_file = './data/passage_meta_all.jsonl'
     passage_info_dict = {}
     with open(data_file) as f:
         for line in tqdm(f):
             item = json.loads(line)
-            p_id = item['faiss_index_id']
+            p_id = item['p_id']
             passage_info_dict[p_id] = item
     return passage_info_dict
 
