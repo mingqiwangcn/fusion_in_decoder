@@ -40,7 +40,7 @@ class OndiskIndexer:
          
         out_index_file = os.path.join(tmp_dir, 'populated.index')
         print('writing to [%s]' % out_index_file)
-        faiss.write_index(self.index, out_index_file) 
+        faiss.write_index(index, out_index_file)
 
     @staticmethod
     def create(data_file, index_file):
