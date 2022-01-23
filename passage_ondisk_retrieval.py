@@ -60,7 +60,7 @@ def add_passages(data, result):
         ctxs_num = len(item_result)
         d['ctxs'] =[
                 {
-                    'id': item_result[c]['p_id'],
+                    'id': int(item_result[c]['p_id']),
                     'title': '',
                     'text': item_result[c]['passage'],
                     'score': item_result[c]['score'],
