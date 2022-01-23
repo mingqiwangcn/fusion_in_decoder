@@ -63,11 +63,26 @@ class OndiskIndexer:
         print('wrting index to [%s]' % index_file)
         faiss.write_index(index, index_file) 
 
-def main():
+def create_index():
     data_file = '../data/nq_tables_passage_embeddings_sorted/nq_tables_passage_embeddings_all'
     index_file = '../data/nq_tables.index'
     #OndiskIndexer.create(data_file, index_file)
-    OndiskIndexer.index_data(index_file, data_file)
+    #OndiskIndexer.index_data(index_file, data_file)
+
+def test_query():
+    index_file = './nq_tables_index/populated.index' 
+    index = faiss.read_index(index_file)
+    index.nprobe = 16
+    
+    d = 768
+    qr = faiss.randn((2, d), 123)
+    dists, ids = index.search(qr, 6)
+    print()
+
+def main():
+    test_query()
 
 if __name__ == '__main__':
-    main()         
+    main()
+    
+     
