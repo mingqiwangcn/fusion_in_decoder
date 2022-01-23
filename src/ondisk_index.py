@@ -36,7 +36,7 @@ class OndiskIndexer:
         merged_file_name = os.path.join(tmp_dir, 'merged_index.ivfdata')
         print('merging block indexes')
         index = faiss.read_index(index_file)
-        merge_ondisk(self.index, block_fnames, merged_file_name)
+        merge_ondisk(index, block_fnames, merged_file_name)
          
         out_index_file = os.path.join(tmp_dir, 'populated.index')
         print('writing to [%s]' % out_index_file)
@@ -64,7 +64,7 @@ class OndiskIndexer:
         faiss.write_index(index, index_file) 
 
 def main():
-    data_file = '/dev/table_data/nq_tables_passage_embeddings_all'
+    data_file = '../data/nq_tables_passage_embeddings_sorted/nq_tables_passage_embeddings_all'
     index_file = '../data/nq_tables.index'
     #OndiskIndexer.create(data_file, index_file)
     OndiskIndexer.index_data(index_file, data_file)
