@@ -25,7 +25,7 @@ import json
 Num_Answers = 1
 
 def evaluate(model, dataset, dataloader, tokenizer, opt):
-    passage_info_dict = read_passage_info()
+    #passage_info_dict = read_passage_info()
     loss, curr_loss = 0.0, 0.0
     model.eval()
     if hasattr(model, "module"):
@@ -68,11 +68,13 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                 top_m = 5
                 score_array = passage_scores.cpu().numpy()
                 top_passage_idxes = np.argpartition(-score_array, range(top_m))[:top_m]
-                
+               
+                ctx_lst = example['ctxs'][:len(passage_scores)] 
                 for threshold in [1, top_m]:
                     top_threshold_idxes = top_passage_idxes[:threshold]
-                    p_id_lst = [example['ctxs'][a]['id'] for a in top_threshold_idxes]
-                    pred_table_lst = [passage_info_dict[int(a)]['tag']['table_id'] for a in p_id_lst]
+                    p_id_lst = [ctx_lst[a]['id'] for a in top_threshold_idxes]
+                    #pred_table_lst = [passage_info_dict[int(a)]['tag']['table_id'] for a in p_id_lst]
+                    pred_table_lst = [ctx_lst[a]['tag']['table_id'] for a in top_threshold_idxes]
                     gold_table_lst = example['table_id_lst']
                     table_found_flags = [int(a in gold_table_lst) for a in pred_table_lst]
                     table_found = max(table_found_flags)
@@ -148,7 +150,8 @@ if __name__ == "__main__":
     )
     eval_dataset = src.data.Dataset(
         eval_examples, 
-        opt.n_context, 
+        opt.n_context,
+        sort_by_score=False 
     )
 
     eval_sampler = SequentialSampler(eval_dataset) 
