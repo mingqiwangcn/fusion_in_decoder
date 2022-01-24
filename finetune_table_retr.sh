@@ -4,7 +4,7 @@ python ./finetune_table_retr.py \
     --train_data ./data/auto_tune/sql_retr_data_train.jsonl \
     --eval_data ./data/auto_tune/sql_retr_data_dev.jsonl \
     --n_context 100 \
-    --per_gpu_batch_size 2 \
+    --per_gpu_batch_size 1 \
     --cuda 0 \
     --name finetune_table_retr \
     --checkpoint_dir output \
