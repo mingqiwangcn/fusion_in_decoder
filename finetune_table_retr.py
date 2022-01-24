@@ -111,7 +111,6 @@ def train(model, retr_model,
           tokenizer, 
           opt):
 
-    metric_rec = fabric_utils.MetricRecorder()
     loss_fn = get_loss_fn(opt)
     learing_rate = 1e-3
     optimizer = optim.Adam(retr_model.parameters(), lr=learing_rate)
@@ -120,6 +119,7 @@ def train(model, retr_model,
     max_epoc = 10
     total_time = .0
     for epoc in range(max_epoc):
+        metric_rec = fabric_utils.MetricRecorder()
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
