@@ -63,7 +63,7 @@ def add_passages(data, result):
                     'id': int(item_result[c]['p_id']),
                     'title': '',
                     'text': item_result[c]['passage'],
-                    'score': item_result[c]['score'],
+                    'score': float(item_result[c]['score']),
                 } for c in range(ctxs_num)
             ] 
 
