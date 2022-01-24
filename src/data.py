@@ -9,6 +9,8 @@ import random
 import json
 import numpy as np
 
+from tqdm import tqdm
+
 Question_Prefix = 'question:'
 
 class Dataset(torch.utils.data.Dataset):
@@ -135,7 +137,7 @@ def load_data(data_path=None, global_rank=-1, world_size=-1):
         with open(data_path, 'r') as fin:
             data = json.load(fin)
     examples = []
-    for k, example in enumerate(data):
+    for k, example in tqdm(enumerate(data)):
         if global_rank > -1 and not k%world_size==global_rank:
             continue
         if data_path is not None and data_path.endswith('.jsonl'):

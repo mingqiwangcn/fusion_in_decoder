@@ -19,39 +19,25 @@ import src.model
 from tqdm import tqdm
 import os
 import json
-from ensemble_retr_model import EnsembleRetrModel 
-from ensemble_retr_loss import EnsembleRetrLoss
-from fabric_qa.answer_ranker.train import get_batch_data as get_fabric_examples
-from fabric_qa.answer_ranker.train import clear_features
-from fabric_qa.answer_ranker.train import get_model_answers, read_qas, save_model, get_open_model
+from src.retr_model import FusionRetrModel 
+from src.retr_loss import FusionRetrLoss
 import logging
-from fabric_qa import utils as fabric_utils
 import torch.optim as optim
 import time
+from fabric_qa import utils as fabric_utils
 
 Num_Answers = 1
-Train_Cache_Dir = '/home/cc/data/qa_zre_data/data/open_qa/train/data_5_percent/train_features'
-Eval_Cache_Dir = '/home/cc/data/qa_zre_data/data/open_qa/dev/dev_features'
-checkpoint_steps = 5000
 
 def get_device(cuda):
     device = torch.device(("cuda:%d" % cuda) if torch.cuda.is_available() and cuda >=0 else "cpu")
     return device
 
 def get_loss_fn(opt):
-    loss_fn = EnsembleRetrLoss(opt.device)
+    loss_fn = FusionRetrLoss(opt.device)
     return loss_fn
 
 def get_retr_model(opt):
-    opt.num_best = 1
-    reader_file = '/home/cc/code/fabric_qa/model/reader/forward_reader/model'
-    open_model = get_open_model(opt, reader_file, model_id='model_1') 
-    
-    open_model_file = '/home/cc/code/fabric_qa/model/answer_ranker/qa_zre/epoc_8_model.pt'
-    state_dict = torch.load(open_model_file, map_location=opt.device)
-    open_model.load_state_dict(state_dict)
-    
-    retr_model = EnsembleRetrModel(open_model)
+    retr_model = FusionRetrModel()
     retr_model = retr_model.to(opt.device) 
     return retr_model
 
@@ -66,18 +52,12 @@ def log_metrics(epoc, metric_rec,
     for b_idx in range(batch_size):
         item_scores = batch_score[b_idx]
         answer_scores = item_scores 
-
         scores = answer_scores.data.cpu().numpy()
         sorted_idxes = np.argsort(-scores)
-
-        answer_lst = []
         item_answer_lst = batch_answers[b_idx]
-        for answer_info in item_answer_lst:
-            answer_lst.extend(answer_info)
-
-        ems = [answer_lst[idx]['em'] for idx in sorted_idxes]
-        f1s = [answer_lst[idx]['f1'] for idx in sorted_idxes]
-
+        assert(len(sorted_idxes) == len(item_answer_lst))
+        ems = [item_answer_lst[idx]['em'] for idx in sorted_idxes]
+        f1s = ems
         metric_rec.update(ems, f1s)
         batch_sorted_idxes.append(sorted_idxes)
         answer_num_lst.append(len(sorted_idxes))
@@ -85,20 +65,22 @@ def log_metrics(epoc, metric_rec,
     max_answer_num = max(answer_num_lst)
     metric_mean = metric_rec.get_mean()
     str_info = ('epoc=%d ' % epoc) if epoc is not None else ''
+    if loss is None:
+        str_info = ' ' + str_info
     if model_tag is not None:
         str_info += '%s ' % model_tag
     if not loss is None:
         str_info += 'loss=%.6f ' % loss
 
-    str_info += '(em, f1)=(%.2f, %.2f) max-top-%d(em, f1)=(%.2f, %.2f) time=%.2f total=%.2f %d/%d'\
-             % (metric_mean[0], metric_mean[1], max_answer_num, metric_mean[2], metric_mean[3],
-                time_span, total_time, itr, num_batch)
+    str_info += 'p@1=%.2f p@%d=%.2f time=%.2f total=%.2f %d/%d'\
+             % (metric_mean[0], max_answer_num, metric_mean[2], time_span, total_time, itr, num_batch)
     logger.info(str_info)
 
     return batch_sorted_idxes
 
 
-def evaluate(epoc, model, retr_model, dataset, dataloader, eval_qas, tokenizer, opt, model_tag=None):
+def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model_tag=None):
+    logger.info('Start evaluation')
     model.eval()
     retr_model.eval()
    
@@ -112,22 +94,20 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, eval_qas, tokenizer, 
             t1 = time.time()
 
             scores, score_states, examples = get_score_info(model, fusion_batch, dataset)
-            batch_fabric_data, batch_fabric_examples = get_fabric_batch_data(examples, Eval_Cache_Dir)
-            retr_scores = retr_model(batch_fabric_data, batch_fabric_examples, scores, score_states)    
-            clear_features(batch_fabric_data)
-            batch_answers = get_batch_answers(batch_fabric_data, eval_qas) 
-            
+            batch_data = get_batch_data(examples)
+            retr_scores = retr_model(batch_data, scores, score_states)    
+            batch_answers = get_batch_answers(batch_data)
+             
             t2 = time.time()
             time_span = t2 - t1
             total_time += time_span
            
-            if ((itr + 1) % 10 == 0) or (itr + 1 == num_batch):  
-                log_metrics(epoc, metric_rec, batch_fabric_data, retr_scores, batch_answers, time_span, total_time, 
-                            (itr + 1), num_batch, loss=None, model_tag=model_tag) 
+            log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
+                        (itr + 1), num_batch, loss=None, model_tag=model_tag) 
             
 def train(model, retr_model, 
-          train_dataset, train_qas, collator,
-          eval_dataset, eval_dataloader, eval_qas_data, 
+          train_dataset, collator,
+          eval_dataset, eval_dataloader, 
           tokenizer, 
           opt):
 
@@ -166,10 +146,9 @@ def train(model, retr_model,
             t1 = time.time()
 
             scores, score_states, examples = get_score_info(model, fusion_batch, train_dataset)
-            batch_fabric_data, batch_fabric_examples = get_fabric_batch_data(examples, Train_Cache_Dir)
-            retr_scores = retr_model(batch_fabric_data, batch_fabric_examples, scores, score_states)    
-            clear_features(batch_fabric_data)
-            batch_answers = get_batch_answers(batch_fabric_data, train_qas) 
+            batch_data = get_batch_data(examples)
+            retr_scores = retr_model(batch_data, scores, score_states) 
+            batch_answers = get_batch_answers(batch_data) 
             loss = loss_fn(retr_scores, batch_answers)
             optimizer.zero_grad()
             if loss is None:
@@ -183,33 +162,54 @@ def train(model, retr_model,
             time_span = t2 - t1
             total_time += time_span
             
-            if ((itr + 1) % 10 == 0) or (itr + 1 == num_batch):  
-                log_metrics(epoc, metric_rec, batch_fabric_data, retr_scores, batch_answers, time_span, total_time, 
-                            (itr + 1), num_batch, loss.item()) 
+            log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
+                        (itr + 1), num_batch, loss.item()) 
             
-            if global_steps % checkpoint_steps == 0:
+            if global_steps % opt.checkpoint_steps == 0:
                 model_tag = 'step_%d' % global_steps
                 out_dir = os.path.join(opt.checkpoint_dir, opt.name)
-                save_model(out_dir, retr_model, epoc, tag=model_tag)
+                save_model(out_dir, retr_model, epoc, tag=model_tag) 
+                show_tag = 'step=%d' % global_steps
                 evaluate(epoc, model, retr_model,
-                         eval_dataset, eval_dataloader, eval_qas_data,
-                         tokenizer, opt, model_tag=model_tag)
+                         eval_dataset, eval_dataloader,
+                         tokenizer, opt, model_tag=show_tag)
                 retr_model.train() 
 
-def get_fabric_batch_data(fusion_examples, cache_dir):
-    batch_fabric_data = []
+def get_batch_answers(batch_data):
+    batch_answers = []
+    for item in batch_data:
+        answers = item['answers']
+        batch_answers.append(answers)
+    return batch_answers
+
+def save_model(output_dir, model, epoc, tag='step'):
+    file_name = 'epoc_%d_%s_model.pt' % (epoc, tag)
+    out_path = os.path.join(output_dir, file_name)
+    torch.save(model.state_dict(), out_path) 
+
+def get_batch_data(fusion_examples):
+    batch_data = []
     for f_example in fusion_examples:
+        gold_table_lst = f_example['table_id_lst']
         ctx_data = f_example['ctxs']
+        
+        item_answers = []
+        for passage_info in ctx_data:
+            answer_info = {
+                'em':int(passage_info['tag']['table_id'] in gold_table_lst)
+            }
+            item_answers.append(answer_info)
+        
         item_data = {
             'qid':f_example['id'],
             'question':f_example['question'],
             'passages':[a['text'] for a in ctx_data],
-            'p_id_lst':[a['p_id'] for a in ctx_data]
+            'p_id_lst':[a['id'] for a in ctx_data],
+            'answers':item_answers      
         }
-        batch_fabric_data.append(item_data)
+        batch_data.append(item_data)
     
-    _, batch_fabric_examples = get_fabric_examples(batch_fabric_data, cache_dir)
-    return batch_fabric_data, batch_fabric_examples 
+    return batch_data 
     
 def get_score_info(model, batch_data, dataset):
     with torch.no_grad():
@@ -223,9 +223,11 @@ def get_score_info(model, batch_data, dataset):
             num_return_sequences=Num_Answers
         )
         crossattention_scores, score_states = model.get_crossattention_scores(context_mask.cuda())
+        num_passages = crossattention_scores.shape[1]
         batch_examples = [] 
         for k, _ in enumerate(outputs):
             example = dataset.data[idx[k]]
+            example['ctxs'] = example['ctxs'][:num_passages]
             batch_examples.append(example)
         
     return crossattention_scores, score_states, batch_examples
@@ -244,10 +246,6 @@ def show_precision(count, table_pred_results):
         precision = np.mean(table_pred_results[threshold]) * 100
         str_info += 'p@%d = %.2f ' % (threshold, precision)
     logger.info(str_info)
-
-def get_batch_answers(batch_data, qas_data):
-    batch_answers = get_model_answers(batch_data, qas_data, 'model_1')
-    return batch_answers
 
 def set_logger(opt):
     global logger
@@ -321,7 +319,6 @@ def main():
         num_workers=0, 
         collate_fn=collator_function
     )
-    eval_qas_data = read_qas(opt.eval_qas_file)
     
     model_class = src.model.FiDT5
     model = model_class.from_pretrained(opt.model_path)
@@ -334,16 +331,15 @@ def main():
             world_size=opt.world_size,
         )
         train_dataset = src.data.Dataset(train_examples, opt.n_context, sort_by_score=False)
-        train_qas_data = read_qas(opt.train_qas_file)
         logger.info("Start train")
         train(model, retr_model, 
-              train_dataset, train_qas_data, collator_function,
-              eval_dataset, eval_dataloader, eval_qas_data, 
+              train_dataset, collator_function,
+              eval_dataset, eval_dataloader, 
               tokenizer, opt)
     else:
         logger.info("Start eval")
         evaluate(model, retr_model,
-                eval_dataset, eval_dataloader, eval_qas_data,
+                eval_dataset, eval_dataloader,
                 tokenizer, opt)
      
     f_o_preds.close()

@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-class EnsembleRetrLoss(nn.Module):
+class FusionRetrLoss(nn.Module):
     def __init__(self, device):
-        super(EnsembleRetrLoss, self).__init__()
+        super(FusionRetrLoss, self).__init__()
         self.ce_loss = nn.CrossEntropyLoss()
 
     def forward(self, batch_score, batch_answers):
@@ -15,11 +15,7 @@ class EnsembleRetrLoss(nn.Module):
         for b_idx, item_scores in enumerate(batch_score):
             answer_scores = item_scores  
             
-            item_answer_lst = batch_answers[b_idx]
-            answer_lst = []
-            for answer_info in item_answer_lst:
-                answer_lst.extend(answer_info)
-            
+            answer_lst = batch_answers[b_idx]
             pos_idxes, neg_idxes = self.get_pos_neg_idxes(answer_lst)
             if (len(pos_idxes) == 0) or (len(neg_idxes) == 0):
                 continue
