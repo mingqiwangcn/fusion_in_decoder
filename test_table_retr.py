@@ -22,6 +22,8 @@ from tqdm import tqdm
 import os
 import json
 
+import sys
+
 Num_Answers = 1
 
 def evaluate(model, dataset, dataloader, tokenizer, opt):
@@ -53,7 +55,7 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                 num_return_sequences=Num_Answers
             )
 
-            crossattention_scores = model.get_crossattention_scores(context_mask.cuda())
+            crossattention_scores, _ = model.get_crossattention_scores(context_mask.cuda())
 
             assert(len(outputs) == (len(idx) * Num_Answers))
             outputs = outputs.reshape(len(idx), Num_Answers, -1)
@@ -68,12 +70,10 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                 top_m = 5
                 score_array = passage_scores.cpu().numpy()
                 top_passage_idxes = np.argpartition(-score_array, range(top_m))[:top_m]
-               
+              
                 ctx_lst = example['ctxs'][:len(passage_scores)] 
                 for threshold in [1, top_m]:
                     top_threshold_idxes = top_passage_idxes[:threshold]
-                    p_id_lst = [ctx_lst[a]['id'] for a in top_threshold_idxes]
-                    #pred_table_lst = [passage_info_dict[int(a)]['tag']['table_id'] for a in p_id_lst]
                     pred_table_lst = [ctx_lst[a]['tag']['table_id'] for a in top_threshold_idxes]
                     gold_table_lst = example['table_id_lst']
                     table_found_flags = [int(a in gold_table_lst) for a in pred_table_lst]
@@ -86,20 +86,10 @@ def evaluate(model, dataset, dataloader, tokenizer, opt):
                     table_pred_results[threshold].append(table_found)
                 
                 count += 1
-                if count % 10 == 0:
-                    show_precision(count, table_pred_results)
+                #if count % 10 == 0:
+                show_precision(count, table_pred_results)
          
     show_precision(count, table_pred_results)
-
-def read_passage_info():
-    data_file = './data/passage_meta_all.jsonl'
-    passage_info_dict = {}
-    with open(data_file) as f:
-        for line in tqdm(f):
-            item = json.loads(line)
-            p_id = item['p_id']
-            passage_info_dict[p_id] = item
-    return passage_info_dict
 
 def write_preds(qid, top_table_id, gold_table_lst):
     out_item = {
@@ -127,6 +117,10 @@ if __name__ == "__main__":
 
     dir_path = Path(opt.checkpoint_dir)/opt.name
     directory_exists = dir_path.exists()
+    if directory_exists:
+        print('[%s] already exists' % dir_path)
+        sys.exit(0)
+
     if opt.is_distributed:
         torch.distributed.barrier()
     dir_path.mkdir(parents=True, exist_ok=True)

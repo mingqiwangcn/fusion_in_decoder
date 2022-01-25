@@ -38,6 +38,10 @@ def get_loss_fn(opt):
 
 def get_retr_model(opt):
     retr_model = FusionRetrModel()
+    if opt.fusion_retr_model is not None:
+        state_dict = torch.load(opt.fusion_retr_model, map_location=opt.device)
+        retr_model.load_state_dict(state_dict)
+
     retr_model = retr_model.to(opt.device) 
     return retr_model
 
@@ -53,9 +57,9 @@ def log_metrics(epoc, metric_rec,
         item_scores = batch_score[b_idx]
         answer_scores = item_scores 
         scores = answer_scores.data.cpu().numpy()
-        sorted_idxes = np.argsort(-scores)
+        sorted_idxes = np.argpartition(-scores, range(5))[:5]
         item_answer_lst = batch_answers[b_idx]
-        assert(len(sorted_idxes) == len(item_answer_lst))
+        #assert(len(sorted_idxes) == len(item_answer_lst))
         ems = [item_answer_lst[idx]['em'] for idx in sorted_idxes]
         f1s = ems
         metric_rec.update(ems, f1s)
@@ -161,6 +165,7 @@ def train(model, retr_model,
             t2 = time.time()
             time_span = t2 - t1
             total_time += time_span
+           
             
             log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
                         (itr + 1), num_batch, loss.item()) 
@@ -338,7 +343,7 @@ def main():
               tokenizer, opt)
     else:
         logger.info("Start eval")
-        evaluate(model, retr_model,
+        evaluate(0, model, retr_model,
                 eval_dataset, eval_dataloader,
                 tokenizer, opt)
      

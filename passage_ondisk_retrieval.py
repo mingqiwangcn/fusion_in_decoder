@@ -51,7 +51,7 @@ def embed_questions(opt, data, model, tokenizer):
 
     return embedding.cpu().numpy()
 
-def add_passages(data, result):
+def add_passages(data, result, meta_dict):
     # add passages to original data
     merged_data = []
     assert len(data) == len(result)
@@ -64,6 +64,7 @@ def add_passages(data, result):
                     'title': '',
                     'text': item_result[c]['passage'],
                     'score': float(item_result[c]['score']),
+                    'tag':meta_dict[str(item_result[c]['p_id'])]['tag']
                 } for c in range(ctxs_num)
             ] 
 
@@ -88,7 +89,7 @@ def main(opt):
     search_result = index.search(questions_embedding, top_n=args.n_docs, n_probe=16, batch_size=20) 
     logger.info(f'Search time: {time.time()-start_time_retrieval:.1f} s.')
 
-    add_passages(data, search_result)
+    add_passages(data, search_result, index.meta_dict)
     output_path = Path(args.output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output_path, 'w') as fout:
