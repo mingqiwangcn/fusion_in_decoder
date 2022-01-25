@@ -16,7 +16,13 @@ class FusionRetrModel(nn.Module):
     def forward(self, batch_data, fusion_scores, fusion_states):
         fusion_scores_redo = self.recompute_fusion_score(batch_data, fusion_scores, fusion_states)
         return fusion_scores_redo
-  
+ 
+    def std_norm(self, scores):
+        mean_score = scores.mean()
+        std_score = scores.std()
+        ret_scores = (scores - mean_score) / std_score
+        return ret_scores
+
     def recompute_fusion_score(self, batch_data, fusion_scores, fusion_states):
         answer_states = fusion_states['answer_states']
         bsz, n_layers, _, emb_size = answer_states.size()
@@ -32,7 +38,9 @@ class FusionRetrModel(nn.Module):
         for idx in range(len(batch_data)):
             n_passages = len(batch_data[idx]['passages'])
             item_scores = batch_scores[idx].view(n_layers, n_passages, -1)
-            passage_scores = item_scores.sum(dim=[0,2]) # + fusion_scores[idx]
+            item_adapt_scores = item_scores.sum(dim=[0,2])
+            item_fusion_scores = fusion_scores[idx]
+            passage_scores = self.std_norm(item_adapt_scores) + self.std_norm(item_fusion_scores) 
             batch_passage_scores.append(passage_scores)
                  
         return batch_passage_scores 
