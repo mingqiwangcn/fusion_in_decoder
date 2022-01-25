@@ -32,7 +32,7 @@ class FusionRetrModel(nn.Module):
         for idx in range(len(batch_data)):
             n_passages = len(batch_data[idx]['passages'])
             item_scores = batch_scores[idx].view(n_layers, n_passages, -1)
-            passage_scores = item_scores.sum(dim=[0,2]) + fusion_scores[idx]
+            passage_scores = item_scores.sum(dim=[0,2]) # + fusion_scores[idx]
             batch_passage_scores.append(passage_scores)
                  
         return batch_passage_scores 
