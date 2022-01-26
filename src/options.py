@@ -73,6 +73,7 @@ class Options():
         self.parser.add_argument('--model_path', type=str, default='none', help='path for retraining')
        
         self.parser.add_argument('--fusion_retr_model', type=str) 
+        self.parser.add_argument('--retr_model_type', type=str) 
         self.parser.add_argument('--do_train', action="store_true")
         self.parser.add_argument('--cuda', type=int, default=0)
         self.parser.add_argument('--train_qas_file', type=str)

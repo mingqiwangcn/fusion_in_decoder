@@ -21,6 +21,10 @@ import os
 import json
 from src.retr_model import FusionRetrModel 
 from src.retr_loss import FusionRetrLoss
+
+from src.general_retr_model import FusionGeneralRetrModel
+from src.general_retr_loss import FusionGeneralRetrLoss
+
 import logging
 import torch.optim as optim
 import time
@@ -34,11 +38,17 @@ def get_device(cuda):
     return device
 
 def get_loss_fn(opt):
-    loss_fn = FusionRetrLoss(opt.device)
+    if (opt.retr_model_type is None) or (opt.retr_model_type != 'rank'):
+        loss_fn = FusionGeneralRetrLoss()
+    else:
+        loss_fn = FusionRetrLoss()
     return loss_fn
 
 def get_retr_model(opt):
-    retr_model = FusionRetrModel()
+    if (opt.retr_model_type is None) or (opt.retr_model_type != 'rank'):
+        retr_model = FusionGeneralRetrModel()
+    else:
+        retr_model = FusionRetrModel()
     if opt.fusion_retr_model is not None:
         state_dict = torch.load(opt.fusion_retr_model, map_location=opt.device)
         retr_model.load_state_dict(state_dict)
