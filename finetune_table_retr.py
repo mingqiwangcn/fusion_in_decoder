@@ -27,6 +27,7 @@ import time
 from fabric_qa import utils as fabric_utils
 
 Num_Answers = 1
+global_steps = 0
 
 def get_device(cuda):
     device = torch.device(("cuda:%d" % cuda) if torch.cuda.is_available() and cuda >=0 else "cpu")
@@ -78,6 +79,9 @@ def log_metrics(epoc, metric_rec,
 
     str_info += 'p@1=%.2f p@%d=%.2f time=%.2f total=%.2f %d/%d'\
              % (metric_mean[0], max_answer_num, metric_mean[2], time_span, total_time, itr, num_batch)
+    
+    if loss is not None:
+        str_info += ' global_steps=%d' % global_steps
     logger.info(str_info)
 
     return batch_sorted_idxes
@@ -118,7 +122,8 @@ def train(model, retr_model,
     loss_fn = get_loss_fn(opt)
     learing_rate = 1e-3
     optimizer = optim.Adam(retr_model.parameters(), lr=learing_rate)
-
+    
+    global global_steps
     global_steps = 0
     max_epoc = 10
     total_time = .0
