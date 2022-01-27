@@ -14,6 +14,7 @@ class FusionGeneralRetrLoss(nn.Module):
         
         for b_idx, item_scores in enumerate(batch_score):
             answer_lst = batch_answers[b_idx]
+            assert(len(item_scores) == len(answer_lst))
             pos_idxes, neg_idxes = self.get_pos_neg_idxes(answer_lst)
             if (len(pos_idxes) == 0) or (len(neg_idxes) == 0):
                 continue
