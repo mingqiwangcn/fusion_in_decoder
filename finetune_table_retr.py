@@ -68,7 +68,8 @@ def log_metrics(epoc, metric_rec,
         item_scores = batch_score[b_idx]
         answer_scores = item_scores 
         scores = answer_scores.data.cpu().numpy()
-        sorted_idxes = np.argpartition(-scores, range(5))[:5]
+        top_m = min(len(scores), 5)
+        sorted_idxes = np.argpartition(-scores, range(top_m))[:top_m]
         item_answer_lst = batch_answers[b_idx]
         #assert(len(sorted_idxes) == len(item_answer_lst))
         ems = [item_answer_lst[idx]['em'] for idx in sorted_idxes]
