@@ -80,13 +80,12 @@ class OndiskIndexer:
         return batch_result
 
     @staticmethod
-    def index_data(index_file, data_file, block_size=5000000):
+    def index_data(index_file, data_file, index_out_dir, block_size=5000000):
         print('loading data')
         with open(data_file, 'rb') as f:
             p_ids, p_embs = pickle.load(f)
        
-        tmp_dir = 'ondisk_index_%s' % str(uuid.uuid4())
-        os.mkdir(tmp_dir)
+        os.mkdir(index_out_dir)
         N = len(p_ids)
         bno = 0
         block_fnames = []
@@ -99,19 +98,24 @@ class OndiskIndexer:
             block_p_ids = np.int64(np.array(p_ids[idx:pos]))
             block_p_embs = np.float32(p_embs[idx:pos])
             index.add_with_ids(block_p_embs, block_p_ids)
-            block_file_name = os.path.join(tmp_dir, 'block_%d.index' % bno)
+            block_file_name = os.path.join(index_out_dir, 'block_%d.index' % bno)
             faiss.write_index(index, block_file_name)
             block_fnames.append(block_file_name)
             bno += 1
        
-        merged_file_name = os.path.join(tmp_dir, 'merged_index.ivfdata')
+        merged_file_name = os.path.join(index_out_dir, 'merged_index.ivfdata')
         print('merging block indexes')
         index = faiss.read_index(index_file)
         merge_ondisk(index, block_fnames, merged_file_name)
          
-        out_index_file = os.path.join(tmp_dir, 'populated.index')
+        out_index_file = os.path.join(index_out_dir, 'populated.index')
         print('writing to [%s]' % out_index_file)
         faiss.write_index(index, out_index_file)
+       
+        #remove the empty trained index and the block files
+        os.remove(index_file)
+        for block_file_name in block_fnames:
+            os.remove(block_file_name)
 
     # create an empty index and train it
     @staticmethod
@@ -139,15 +143,19 @@ class OndiskIndexer:
         faiss.write_index(index, index_file) 
 
 def create_index(args):
+    if not os.path.isdir('data'):
+        os.mkdir('data')
+
+    index_out_dir = os.path.join('data', 'on_disk_index_%s_%s' % (args.dataset, args.experiment))
+    if os.path.exists(index_out_dir):
+        raise ValueError('Index directory [%s] already exists' % index_file)
+    
     dataset_dir = '/home/cc/code/open_table_discovery/table2txt/dataset/'
     exptr_dir = os.path.join(dataset_dir, args.dataset, args.experiment)
     data_file = os.path.join(exptr_dir, args.emb_file)
-    index_file = os.path.join(exptr_dir, '%s_%s.index' % (args.dataset, args.experiment))
-    if os.path.exists(index_file):
-        raise ValueError('Index [%s] already exists' % index_file)
-
-    OndiskIndexer.create(data_file, index_file, args.num_train)
-    OndiskIndexer.index_data(index_file, data_file)
+    trained_index_file = os.path.join(index_out_dir, 'trained.index')
+    OndiskIndexer.create(data_file, trained_index_file, args.num_train)
+    OndiskIndexer.index_data(trained_index_file, data_file, index_out_dir)
 
 def get_args():
     parser = argparse.ArgumentParser()
