@@ -11,43 +11,18 @@ import argparse
 import glob
 
 class OndiskIndexer:
-    def __init__(self, index_file, meta_file, passage_file):
+    def __init__(self, index_file, passage_file):
         self.index = faiss.read_index(index_file)
-        self.meta_dict = self.load_passage_meta(meta_file, passage_file)
+        self.passage_dict = self.load_passages(passage_file)
    
-    def get_passage_key(self, tag):
-        table_id = tag['table_id']
-        row = tag['row']
-        sub_col = tag['sub_col']
-        obj_col = tag['obj_col']
-        key = '%s_%s_%s_%s' % (table_id, str(row), str(sub_col), str(obj_col))
-        return key 
-
-    def load_passage_meta(self, meta_file, passage_file):
+    def load_passages(self, passage_file):
         passage_dict = {} 
         with open(passage_file) as f_p:
             for line in tqdm(f_p):
                 item = json.loads(line)
-                tag = item['tag']
-                key = self.get_passage_key(tag)
-                if key in passage_dict:
-                    raise ValueError('duplicate passage keys')
-                passage_dict[key] = item['passage']         
-
-        meta_dict = {}
-        with open(meta_file) as f_m:
-            for line in tqdm(f_m):
-                item = json.loads(line)
                 p_id = item['p_id']
-                tag = item['tag']
-                key = self.get_passage_key(tag)
-                passage = passage_dict[key]
-                item['passage'] = passage
-                meta_dict[str(p_id)] = item
-        
-        del passage_dict
-        return meta_dict 
-        
+                passage_dict[int(p_id)] = item 
+        return passage_dict
     
     def search(self, query, top_n=500, n_probe=16, batch_size=10):
         result = []
@@ -69,7 +44,7 @@ class OndiskIndexer:
             p_id_lst = batch_p_ids[item_idx]
             p_dist_lst = batch_dists[item_idx]
             for idx, p_id in enumerate(p_id_lst):
-                passage_info = self.meta_dict[str(p_id)]
+                passage_info = self.passage_dict[int(p_id)]
                 out_item = {
                     'p_id':p_id,
                     'passage':passage_info['passage'],
