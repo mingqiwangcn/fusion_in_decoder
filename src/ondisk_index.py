@@ -7,6 +7,7 @@ import os
 import numpy as np
 import uuid
 import json
+import argparse
 
 class OndiskIndexer:
     def __init__(self, index_file, meta_file, passage_file):
@@ -84,7 +85,7 @@ class OndiskIndexer:
         with open(data_file, 'rb') as f:
             p_ids, p_embs = pickle.load(f)
        
-        tmp_dir = 'ondisk_index_tmp_%s' % str(uuid.uuid4())
+        tmp_dir = 'ondisk_index_%s' % str(uuid.uuid4())
         os.mkdir(tmp_dir)
         N = len(p_ids)
         bno = 0
@@ -112,8 +113,9 @@ class OndiskIndexer:
         print('writing to [%s]' % out_index_file)
         faiss.write_index(index, out_index_file)
 
+    # create an empty index and train it
     @staticmethod
-    def create(data_file, index_file):
+    def create(data_file, index_file, num_train):
         if os.path.exists(index_file):
             print('index file [%s] already exists' % index_file)
             return 
@@ -124,8 +126,11 @@ class OndiskIndexer:
         N = p_embs.shape[0]
         D = p_embs.shape[1] 
         index = faiss.index_factory(D, "IVF4096,Flat", faiss.METRIC_INNER_PRODUCT)
-        
-        train_rows = random.sample(list(np.arange(0, N)), N // 10) 
+       
+        all_rows = list(np.arange(0, N))
+        if num_train > len(all_rows):
+            raise ValueError('num_train must not be greater than size of data') 
+        train_rows = random.sample(list(np.arange(0, N)), num_train) 
         train_embs = np.vstack([p_embs[a] for a in train_rows])
         train_embs = np.float32(train_embs)
         print('training index')
@@ -133,24 +138,29 @@ class OndiskIndexer:
         print('wrting index to [%s]' % index_file)
         faiss.write_index(index, index_file) 
 
-def create_index():
-    data_file = '../data/nq_tables_passage_embeddings_sorted/nq_tables_passage_embeddings_all'
-    index_file = '../data/nq_tables.index'
-    #OndiskIndexer.create(data_file, index_file)
-    #OndiskIndexer.index_data(index_file, data_file)
+def create_index(args):
+    dataset_dir = '/home/cc/code/open_table_discovery/table2txt/dataset/'
+    exptr_dir = os.path.join(dataset_dir, args.dataset, args.experiment)
+    data_file = os.path.join(exptr_dir, args.emb_file)
+    index_file = os.path.join(exptr_dir, '%s_%s.index' % (args.dataset, args.experiment))
+    if os.path.exists(index_file):
+        raise ValueError('Index [%s] already exists' % index_file)
 
-def test_query():
-    index_file = './nq_tables_index/populated.index' 
-    index = faiss.read_index(index_file)
-    index.nprobe = 16
-    
-    d = 768
-    qr = faiss.randn((2, d), 123)
-    dists, ids = index.search(qr, 6)
-    print()
+    OndiskIndexer.create(data_file, index_file, args.num_train)
+    OndiskIndexer.index_data(index_file, data_file)
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset', type=str)
+    parser.add_argument('--experiment', type=str)
+    parser.add_argument('--emb_file', type=str)
+    parser.add_argument('--num_train', type=int)
+    args = parser.parse_args()
+    return args
 
 def main():
-    test_query()
+    args = get_args()
+    create_index(args)
 
 if __name__ == '__main__':
     main()
