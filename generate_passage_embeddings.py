@@ -57,9 +57,14 @@ def embed_passages(opt, passages, model, tokenizer):
     allids = [x for idlist in allids for x in idlist]
     return allids, allembeddings
 
-
 def main(opt):
     logger = src.util.init_logger(is_main=True)
+    output_path = Path(args.output_path)
+    save_file = output_path.parent / (output_path.name + f'_{args.shard_id:02d}')
+    if os.path.exists(save_file):
+        logger.info('[%s] already exists' % save_file)
+        return
+
     tokenizer = transformers.BertTokenizerFast.from_pretrained('bert-base-uncased')
     model_class = src.model.Retriever
     #model, _, _, _, _, _ = src.util.load(model_class, opt.model_path, opt)
@@ -83,8 +88,6 @@ def main(opt):
 
     allids, allembeddings = embed_passages(opt, passages, model, tokenizer)
 
-    output_path = Path(args.output_path)
-    save_file = output_path.parent / (output_path.name + f'_{args.shard_id:02d}')
     output_path.parent.mkdir(parents=True, exist_ok=True) 
     logger.info(f'Saving {len(allids)} passage embeddings to {save_file}')
     with open(save_file, mode='wb') as f:
@@ -96,7 +99,7 @@ def main(opt):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--passages', type=str, default=None, help='Path to passages (.tsv file)')
+    parser.add_argument('--passages', type=str, default=None, help='Path to passages (.jsonl file)')
     parser.add_argument('--output_path', type=str, default='wikipedia_embeddings/passages', help='prefix path to save embeddings')
     parser.add_argument('--shard_id', type=int, default=0, help="Id of the current shard")
     parser.add_argument('--num_shards', type=int, default=1, help="Total number of shards")

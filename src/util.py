@@ -216,11 +216,8 @@ def load_passages(path):
     logger.info(f'Loading passages from: {path}')
     passages = []
     with open(path) as fin:
-        reader = csv.reader(fin, delimiter='\t')
-        for k, row in tqdm(enumerate(reader)):
-            if not row[0] == 'id':
-                try:
-                    passages.append((row[0], row[1], row[2]))
-                except:
-                    logger.warning(f'The following input line has not been correctly loaded: {row}')
+        for line in tqdm(fin):
+            item = json.loads(line)
+            passage_info = (item['p_id'], item['passage'], '')
+            passages.append(passage_info)
     return passages
