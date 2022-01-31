@@ -85,7 +85,6 @@ class OndiskIndexer:
         with open(data_file, 'rb') as f:
             p_ids, p_embs = pickle.load(f)
        
-        os.mkdir(index_out_dir)
         N = len(p_ids)
         bno = 0
         block_fnames = []
@@ -150,6 +149,7 @@ def create_index(args):
     if os.path.exists(index_out_dir):
         raise ValueError('Index directory [%s] already exists' % index_file)
     
+    os.mkdir(index_out_dir)
     dataset_dir = '/home/cc/code/open_table_discovery/table2txt/dataset/'
     exptr_dir = os.path.join(dataset_dir, args.dataset, args.experiment)
     data_file = os.path.join(exptr_dir, args.emb_file)
