@@ -38,10 +38,12 @@ def get_device(cuda):
     return device
 
 def get_loss_fn(opt):
-    if (opt.retr_model_type is None) or (opt.retr_model_type != 'rank'):
+    if (opt.retr_model_type is None) or (opt.retr_model_type == ''):
+        loss_fn = FusionRetrLoss()
+    elif opt.retr_model_type == 'general':
         loss_fn = FusionGeneralRetrLoss()
     else:
-        loss_fn = FusionRetrLoss()
+        raise ValueError('retr_model_type [%s] not supported' % opt.retr_model_type)
     return loss_fn
 
 def get_retr_model(opt):
