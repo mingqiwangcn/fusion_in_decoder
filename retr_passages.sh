@@ -10,7 +10,7 @@ index_file=./data/on_disk_index_${dataset}_${exptr}/populated.index
 exptr_dir=/home/cc/code/open_table_discovery/table2txt/dataset/${dataset}/${exptr}
 passage_file=${exptr_dir}/${passage_file_name}
 query_file=/home/cc/data/${dataset}/fusion_query/fusion_query_${mode}.jsonl
-out_retr_file=${exptr_dir}/fusion_retrieved_${mode}.jsonl
+out_retr_file=${exptr_dir}/fusion_retrieved_${mode}.json
 
 python ./passage_ondisk_retrieval.py \
     --model_path ./pretrained_models/tqa_retriever \
