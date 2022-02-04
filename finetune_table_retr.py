@@ -45,8 +45,6 @@ def get_loss_fn(opt):
         loss_fn = FusionGeneralRetrLoss()
         logger.info('loss function, FusionGeneralRetrLoss')
 
-    else:
-        raise ValueError('retr_model_type [%s] not supported' % opt.retr_model_type)
     return loss_fn
 
 def get_retr_model(opt):
