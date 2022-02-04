@@ -40,17 +40,22 @@ def get_device(cuda):
 def get_loss_fn(opt):
     if (opt.retr_model_type is None) or (opt.retr_model_type == ''):
         loss_fn = FusionRetrLoss()
-    elif opt.retr_model_type == 'general':
+        logger.info('loss function, FusionRetrLoss')
+    else: 
         loss_fn = FusionGeneralRetrLoss()
+        logger.info('loss function, FusionGeneralRetrLoss')
+
     else:
         raise ValueError('retr_model_type [%s] not supported' % opt.retr_model_type)
     return loss_fn
 
 def get_retr_model(opt):
-    if (opt.retr_model_type is None) or (opt.retr_model_type != 'rank'):
-        retr_model = FusionGeneralRetrModel()
-    else:
+    if (opt.retr_model_type is None) or (opt.retr_model_type == ''):
         retr_model = FusionRetrModel()
+        logger.info('retr_model, FusionRetrModel')
+    else:
+        retr_model = FusionGeneralRetrModel()
+        logger.info('retr_model, FusionGeneralRetrModel')
     if opt.fusion_retr_model is not None:
         state_dict = torch.load(opt.fusion_retr_model, map_location=opt.device)
         retr_model.load_state_dict(state_dict)

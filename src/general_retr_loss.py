@@ -16,9 +16,9 @@ class FusionGeneralRetrLoss(nn.Module):
             answer_lst = batch_answers[b_idx]
             assert(len(item_scores) == len(answer_lst))
             
-            #pos_idxes, neg_idxes = self.get_pos_neg_idxes(answer_lst)
-            #if (len(pos_idxes) == 0) or (len(neg_idxes) == 0):
-            #    continue
+            pos_idxes, neg_idxes = self.get_pos_neg_idxes(answer_lst)
+            if (len(pos_idxes) == 0) or (len(neg_idxes) == 0):
+                continue
 
             labels = [(1 if a['em'] >= 1 else 0) for a in answer_lst]
             labels = torch.tensor(labels).float().to(item_scores.device)
