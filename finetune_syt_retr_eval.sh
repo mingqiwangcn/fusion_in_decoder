@@ -1,0 +1,10 @@
+python ./finetune_table_retr.py \
+    --model_path ./pretrained_models/tqa_reader_base \
+    --fusion_retr_model ./output/train_syt_nq_tables_triple_template_graph/epoc_0_step_21000_model.pt \
+    --eval_data /home/cc/code/open_table_discovery/table2txt/dataset/fetaqa/graph_tokens/fusion_retrieved_test.json \
+    --n_context 100 \
+    --per_gpu_batch_size 1 \
+    --cuda 0 \
+    --name syt_test_fetaqa_step_21000 \
+    --checkpoint_dir output \
+    --retr_model_type general \
