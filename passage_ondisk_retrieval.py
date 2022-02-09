@@ -13,6 +13,7 @@ import time
 import glob
 from pathlib import Path
 
+import os
 import numpy as np
 import torch
 import transformers
@@ -69,6 +70,10 @@ def add_passages(data, result):
             ] 
 
 def main(opt):
+    if os.path.exists(args.output_path):
+        print('[%s] already exists')
+        return
+    
     src.util.init_logger(is_main=True)
     tokenizer = transformers.BertTokenizerFast.from_pretrained('bert-base-uncased')
     data = src.data.load_data(opt.data)
@@ -92,7 +97,7 @@ def main(opt):
     add_passages(data, search_result)
     output_path = Path(args.output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+     
     with open(args.output_path, 'w') as fout:
         for out_item in tqdm(data):
             fout.write(json.dumps(out_item) + '\n')
