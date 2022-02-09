@@ -92,8 +92,10 @@ def main(opt):
     add_passages(data, search_result)
     output_path = Path(args.output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    
     with open(args.output_path, 'w') as fout:
-        json.dump(data, fout, indent=4)
+        for out_item in tqdm(data):
+            fout.write(json.dumps(out_item) + '\n')
     logger.info(f'Saved results to {args.output_path}')
 
 def read_passages(data_file):
