@@ -71,7 +71,7 @@ def add_passages(data, result):
 
 def main(opt):
     if os.path.exists(args.output_path):
-        print('[%s] already exists')
+        print('[%s] already exists' % args.output_path)
         return
     
     src.util.init_logger(is_main=True)
