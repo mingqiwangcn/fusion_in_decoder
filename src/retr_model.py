@@ -20,7 +20,7 @@ class FusionRetrModel(nn.Module):
     def std_norm(self, scores):
         mean_score = scores.mean()
         std_score = scores.std()
-        ret_scores = (scores - mean_score) / std_score
+        ret_scores = (scores - mean_score) / (std_score + 1e-5)
         return ret_scores
 
     def recompute_fusion_score(self, batch_data, fusion_scores, fusion_states):
