@@ -61,11 +61,26 @@ def get_retr_model(opt):
     retr_model = retr_model.to(opt.device) 
     return retr_model
 
+def write_predictions(f_o_pred, item, top_idxes):
+    qid = item['qid']
+    table_id_lst = item['table_id_lst']
+    question = item['question']
+    passages = item['passages']
+    tags = item['tags']
+    out_item = {
+        'qid':qid,
+        'table_id_lst':table_id_lst,
+        'question':question,
+        'passages':[passages[a] for a in top_idxes],
+        'tags':[tags[a] for a in top_idxes]
+    }
+    f_o_pred.write(json.dumps(out_item) + '\n')
+
 def log_metrics(epoc, metric_rec,
                 batch_data, batch_score, batch_answers, 
                 time_span, total_time,
                 itr, num_batch, 
-                loss=None, model_tag=None):
+                loss=None, model_tag=None, f_o_pred=None):
     batch_size = len(batch_score)
     batch_sorted_idxes = []
     answer_num_lst = []
@@ -82,6 +97,9 @@ def log_metrics(epoc, metric_rec,
         metric_rec.update(ems, f1s)
         batch_sorted_idxes.append(sorted_idxes)
         answer_num_lst.append(len(sorted_idxes))
+        
+        if f_o_pred is not None:
+            write_predictions(f_o_pred, batch_data[b_idx], sorted_idxes)
 
     max_answer_num = max(answer_num_lst)
     metric_mean = metric_rec.get_mean()
@@ -103,10 +121,15 @@ def log_metrics(epoc, metric_rec,
     return batch_sorted_idxes
 
 
-def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model_tag=None):
+def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model_tag=None, out_dir=None):
     logger.info('Start evaluation')
     model.eval()
     retr_model.eval()
+  
+    f_o_pred = None
+    if out_dir is not None:
+        out_pred_file = os.path.join(out_dir, 'pred_%s.jsonl' % model_tag)
+        f_o_pred = open(out_pred_file, 'w')
    
     metric_rec = fabric_utils.MetricRecorder() 
     total_time = .0 
@@ -127,7 +150,10 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model
             total_time += time_span
            
             log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
-                        (itr + 1), num_batch, loss=None, model_tag=model_tag) 
+                        (itr + 1), num_batch, loss=None, model_tag=model_tag, f_o_pred=f_o_pred) 
+    
+    if f_o_pred is not None:
+        f_o_pred.close() 
             
 def train(model, retr_model, 
           train_dataset, collator,
@@ -198,7 +224,7 @@ def train(model, retr_model,
                 show_tag = 'step=%d' % global_steps
                 evaluate(epoc, model, retr_model,
                          eval_dataset, eval_dataloader,
-                         tokenizer, opt, model_tag=show_tag)
+                         tokenizer, opt, model_tag=show_tag, out_dir=out_dir)
                 retr_model.train() 
 
 def get_batch_answers(batch_data):
@@ -228,10 +254,12 @@ def get_batch_data(fusion_examples):
         
         item_data = {
             'qid':f_example['id'],
+            'table_id_lst':gold_table_lst,
             'question':f_example['question'],
             'passages':[a['text'] for a in ctx_data],
             'p_id_lst':[a['id'] for a in ctx_data],
-            'answers':item_answers      
+            'answers':item_answers,
+            'tags':[a['tag'] for a in ctx_data]
         }
         batch_data.append(item_data)
     
@@ -258,13 +286,6 @@ def get_score_info(model, batch_data, dataset):
         
     return crossattention_scores, score_states, batch_examples
     
-def write_preds(qid, top_passage_idx, top_passage):
-    out_item = {
-        'qid':qid,
-        'top_passage_id':int(top_passage_idx),
-        'top_passage':top_passage
-    }
-    f_o_preds.write(json.dumps(out_item) + '\n')
 
 def show_precision(count, table_pred_results):
     str_info = 'count = %d' % count
@@ -311,10 +332,6 @@ def main():
     
     if not directory_exists and opt.is_main:
         options.print_options(opt)
-   
-    global f_o_preds 
-    out_preds_file = os.path.join(opt.checkpoint_dir, opt.name, 'preds.jsonl')
-    f_o_preds = open(out_preds_file, 'w')
 
     tokenizer = transformers.T5Tokenizer.from_pretrained('t5-base', return_dict=False)
 
@@ -364,11 +381,10 @@ def main():
               tokenizer, opt)
     else:
         logger.info("Start eval")
+        out_dir = os.path.join(opt.checkpoint_dir, opt.name)
         evaluate(0, model, retr_model,
                 eval_dataset, eval_dataloader,
-                tokenizer, opt)
-     
-    f_o_preds.close()
+                tokenizer, opt, out_dir=out_dir)
 
     #logger.info(f'EM {100*exactmatch:.2f}, Total number of example {total}')
 
