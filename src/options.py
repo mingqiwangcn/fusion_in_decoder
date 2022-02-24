@@ -91,6 +91,8 @@ class Options():
         self.parser.add_argument('--seed', type=int, default=0, help="random seed for initialization")
         # training parameters
         self.parser.add_argument('--checkpoint_steps', type=int, default=2000)
+        self.parser.add_argument('--eval_freq', type=int, default=1000)
+        self.parser.add_argument('--save_freq', type=int, default=1000)
 
     def print_options(self, opt):
         message = '\n'

@@ -163,7 +163,7 @@ if __name__ == "__main__":
         opt.train_data, 
         global_rank=opt.global_rank, 
         world_size=opt.world_size,
-        backward=opt.backward
+        #backward=opt.backward
     )
     train_dataset = src.data.Dataset(train_examples, opt.n_context)
     # use golbal rank and world size to split the eval set on multiple gpus
@@ -171,7 +171,7 @@ if __name__ == "__main__":
         opt.eval_data,
         global_rank=opt.global_rank,
         world_size=opt.world_size,
-        backward=opt.backward
+        #backward=opt.backward
     )
     eval_dataset = src.data.Dataset(eval_examples, opt.n_context)
 
