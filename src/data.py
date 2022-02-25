@@ -56,6 +56,7 @@ class Dataset(torch.utils.data.Dataset):
             passages = [f.format(c['title'], c['text']) for c in contexts]
             scores = [float(c['score']) for c in contexts]
             scores = torch.tensor(scores)
+            tags = [c['tag'] for c in contexts]
             # TODO(egrave): do we want to keep this?
             if len(contexts) == 0:
                 contexts = [question]
@@ -68,7 +69,7 @@ class Dataset(torch.utils.data.Dataset):
             'target' : target,
             'passages' : passages,
             'scores' : scores,
-            'src_data_item': example
+            'tags': tags
         }
 
     def sort_data(self):
@@ -126,8 +127,8 @@ class Collator(object):
         passage_ids, passage_masks = encode_passages(text_passages,
                                                      self.tokenizer,
                                                      self.text_maxlength)
-
-        return (index, target_ids, target_mask, passage_ids, passage_masks)
+        passage_tags = [a['tags'] for a in batch]
+        return (index, target_ids, target_mask, passage_ids, passage_masks, passage_tags)
 
 def load_data(data_path=None, global_rank=-1, world_size=-1):
     assert data_path
