@@ -267,7 +267,7 @@ def get_batch_data(fusion_examples):
     
 def get_score_info(model, batch_data, dataset):
     with torch.no_grad():
-        (idx, _, _, context_ids, context_mask) = batch_data
+        (idx, _, _, context_ids, context_mask, _) = batch_data
         model.reset_score_storage()
         outputs = model.generate(
             input_ids=context_ids.cuda(),
