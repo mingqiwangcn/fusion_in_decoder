@@ -20,7 +20,7 @@ class Dataset(torch.utils.data.Dataset):
                  question_prefix=Question_Prefix,
                  title_prefix='title:',
                  passage_prefix='context:',
-                 sort_by_score=True
+                 sort_by_score=False
                  ):
         self.data = data
         self.n_context = n_context
