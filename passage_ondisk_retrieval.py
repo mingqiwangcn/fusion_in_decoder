@@ -38,7 +38,7 @@ def embed_questions(opt, data, model, tokenizer):
     embedding = []
     with torch.no_grad():
         for k, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-            (idx, _, _, question_ids, question_mask) = batch
+            (idx, _, _, question_ids, question_mask, _) = batch
             output = model.embed_text(
                 text_ids=question_ids.to(opt.device).view(-1, question_ids.size(-1)), 
                 text_mask=question_mask.to(opt.device).view(-1, question_ids.size(-1)), 

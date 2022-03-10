@@ -56,7 +56,7 @@ class Dataset(torch.utils.data.Dataset):
             passages = [f.format(c['title'], c['text']) for c in contexts]
             scores = [float(c['score']) for c in contexts]
             scores = torch.tensor(scores)
-            tags = [c['tag'] for c in contexts]
+            tags = [c.get('tag', None) for c in contexts]
             # TODO(egrave): do we want to keep this?
             if len(contexts) == 0:
                 contexts = [question]
