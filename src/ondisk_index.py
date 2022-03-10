@@ -98,7 +98,7 @@ def index_data(index_file, data_file, index_out_dir, block_size=5000000):
         os.remove(block_file_name)
 
 def get_index_options(num_vecs):
-    unit = 10e6 
+    unit = 1e6 
     if num_vecs < unit:
         num_clusters = int(16 * math.sqrt(num_vecs))
         num_clusters = min(num_clusters, num_vecs)
@@ -108,17 +108,17 @@ def get_index_options(num_vecs):
 
     elif (num_vecs >= unit) and (num_vecs < 10 * unit):
        num_clusters = 65536
-       num_train = min(256 * num_clusters, num_vecs)
+       num_train = min(60 * num_clusters, num_vecs)
        factory_string = 'IVF%s_HNSW32,Flat' % num_clusters
     
     elif (num_vecs >= 10 * unit) and (num_vecs < 100 * unit):
        num_clusters = 262144
-       num_train = min(256 * num_clusters, num_vecs)
+       num_train = min(60 * num_clusters, num_vecs)
        factory_string = 'IVF%s_HNSW32,Flat' % num_clusters
         
     elif (num_vecs >= 100 * unit) and (num_vecs < 1000 * unit):
        num_clusters = 1048576
-       num_train = min(256 * num_clusters, num_vecs)
+       num_train = min(60 * num_clusters, num_vecs)
        factory_string = 'IVF%s_HNSW32,Flat' % num_clusters
     
     else:
@@ -147,6 +147,7 @@ def create_train(data_file, index_file):
     emb_file_lst.sort()
 
     num_vecs = get_num_vecs(emb_file_lst)
+    print('num_vecs=%d' % num_vecs)
     factory_string, num_train = get_index_options(num_vecs)
 
     num_train_per_file = num_train // len(emb_file_lst)
@@ -163,6 +164,8 @@ def create_train(data_file, index_file):
 
     train_all_embs = np.vstack(train_emb_lst)
     train_all_embs = np.float32(train_all_embs)
+   
+    print('number of traing vectors = %d' % len(train_all_embs))
     
     D = train_all_embs.shape[1]
     index = faiss.index_factory(D, factory_string, faiss.METRIC_INNER_PRODUCT)
