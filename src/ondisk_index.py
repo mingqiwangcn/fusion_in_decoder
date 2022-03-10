@@ -9,6 +9,7 @@ import uuid
 import json
 import argparse
 import glob
+import math
 
 class OndiskIndexer:
     def __init__(self, index_file, passage_file):
@@ -55,78 +56,124 @@ class OndiskIndexer:
             batch_result.append(item_result)
         return batch_result
 
-    @staticmethod
-    def index_data(index_file, data_file, index_out_dir, block_size=5000000):
-        bno = 0
-        block_fnames = []
-        
-        emb_file_lst = glob.glob(data_file)
-        emb_file_lst.sort()
-        for emb_file in emb_file_lst: 
-            print('loading file [%s]' % emb_file)
-            with open(emb_file, 'rb') as f:
-                p_ids, p_embs = pickle.load(f)
-            N = len(p_ids)
-            print('creating block indexes')
-            for idx in range(0, N, block_size):
-                index = faiss.read_index(index_file)
-                index.set_direct_map_type(faiss.DirectMap.Hashtable)
-                pos = idx + block_size
-                block_p_ids = np.int64(np.array(p_ids[idx:pos]))
-                block_p_embs = np.float32(p_embs[idx:pos])
-                index.add_with_ids(block_p_embs, block_p_ids)
-                block_file_name = os.path.join(index_out_dir, 'block_%d.index' % bno)
-                faiss.write_index(index, block_file_name)
-                block_fnames.append(block_file_name)
-                bno += 1
-       
-        merged_file_name = os.path.join(index_out_dir, 'merged_index.ivfdata')
-        print('merging block indexes')
-        index = faiss.read_index(index_file)
-        merge_ondisk(index, block_fnames, merged_file_name)
-         
-        out_index_file = os.path.join(index_out_dir, 'populated.index')
-        print('writing to [%s]' % out_index_file)
-        faiss.write_index(index, out_index_file)
-       
-        #remove the empty trained index and the block files
-        os.remove(index_file)
-        for block_file_name in block_fnames:
-            os.remove(block_file_name)
+# end of class OndiskIndexer 
 
-    # create an empty index and train it
-    @staticmethod
-    def create(data_file, index_file, num_train):
-        if os.path.exists(index_file):
-            print('index file [%s] already exists' % index_file)
-            return 
-        print('loading data')
-        emb_file_lst = glob.glob(data_file)
-        emb_file_lst.sort()
-        num_train_per_file = num_train // len(emb_file_lst)
-        
-        train_emb_lst = []
-        for emb_file in emb_file_lst:
-            with open(emb_file, 'rb') as f:
-                _, p_embs = pickle.load(f)
-            N = p_embs.shape[0]
-            rows = list(np.arange(0, N))
-            train_rows = random.sample(rows, num_train_per_file)
-            train_emb = p_embs[train_rows] 
-            train_emb_lst.append(train_emb)
+def index_data(index_file, data_file, index_out_dir, block_size=5000000):
+    print('start indexing passages')
+    bno = 0
+    block_fnames = []
+    
+    emb_file_lst = glob.glob(data_file)
+    emb_file_lst.sort()
+    for emb_file in emb_file_lst: 
+        print('loading file [%s]' % emb_file)
+        with open(emb_file, 'rb') as f:
+            p_ids, p_embs = pickle.load(f)
+        N = len(p_ids)
+        print('creating block indexes')
+        for idx in range(0, N, block_size):
+            index = faiss.read_index(index_file)
+            index.set_direct_map_type(faiss.DirectMap.Hashtable)
+            pos = idx + block_size
+            block_p_ids = np.int64(np.array(p_ids[idx:pos]))
+            block_p_embs = np.float32(p_embs[idx:pos])
+            index.add_with_ids(block_p_embs, block_p_ids)
+            block_file_name = os.path.join(index_out_dir, 'block_%d.index' % bno)
+            faiss.write_index(index, block_file_name)
+            block_fnames.append(block_file_name)
+            bno += 1
+   
+    merged_file_name = os.path.join(index_out_dir, 'merged_index.ivfdata')
+    print('merging block indexes')
+    index = faiss.read_index(index_file)
+    merge_ondisk(index, block_fnames, merged_file_name)
+     
+    out_index_file = os.path.join(index_out_dir, 'populated.index')
+    print('writing to [%s]' % out_index_file)
+    faiss.write_index(index, out_index_file)
+   
+    #remove the empty trained index and the block files
+    os.remove(index_file)
+    for block_file_name in block_fnames:
+        os.remove(block_file_name)
 
-        train_all_embs = np.vstack(train_emb_lst)
-        train_all_embs = np.float32(train_all_embs)
-        
-        D = train_all_embs.shape[1]
-        index = faiss.index_factory(D, "IVF4096,Flat", faiss.METRIC_INNER_PRODUCT)
-       
-        print('training index')
-        index.train(train_all_embs)
-        print('wrting index to [%s]' % index_file)
-        faiss.write_index(index, index_file) 
+def get_index_options(num_vecs):
+    unit = 10e6 
+    if num_vecs < unit:
+        num_clusters = int(16 * math.sqrt(num_vecs))
+        num_clusters = min(num_clusters, num_vecs)
+        num_train = 256 * num_clusters
+        num_train = min(num_train, num_vecs)
+        factory_string = 'IVF%s,Flat' % num_clusters
 
-def create_index(args):
+    elif (num_vecs >= unit) and (num_vecs < 10 * unit):
+       num_clusters = 65536
+       num_train = min(256 * num_clusters, num_vecs)
+       factory_string = 'IVF%s_HNSW32,Flat' % num_clusters
+    
+    elif (num_vecs >= 10 * unit) and (num_vecs < 100 * unit):
+       num_clusters = 262144
+       num_train = min(256 * num_clusters, num_vecs)
+       factory_string = 'IVF%s_HNSW32,Flat' % num_clusters
+        
+    elif (num_vecs >= 100 * unit) and (num_vecs < 1000 * unit):
+       num_clusters = 1048576
+       num_train = min(256 * num_clusters, num_vecs)
+       factory_string = 'IVF%s_HNSW32,Flat' % num_clusters
+    
+    else:
+        raise ValueError('Not supported right now') 
+
+    print('factory_string=%s, num_train=%d' % (factory_string, num_train))     
+    return factory_string, num_train
+
+def get_num_vecs(emb_file_lst):
+    print('collecting the number of vectors')
+    num_vecs = 0
+    for emb_file in emb_file_lst:
+        with open(emb_file, 'rb') as f:
+            _, p_embs = pickle.load(f)
+        num_part_vecs = len(p_embs)
+        num_vecs += num_part_vecs
+    return num_vecs
+
+# create an empty index and train it
+def create_train(data_file, index_file):
+    if os.path.exists(index_file):
+        print('index file [%s] already exists' % index_file)
+        return 
+    print('loading data')
+    emb_file_lst = glob.glob(data_file)
+    emb_file_lst.sort()
+
+    num_vecs = get_num_vecs(emb_file_lst)
+    factory_string, num_train = get_index_options(num_vecs)
+
+    num_train_per_file = num_train // len(emb_file_lst)
+    
+    train_emb_lst = []
+    for emb_file in emb_file_lst:
+        with open(emb_file, 'rb') as f:
+            _, p_embs = pickle.load(f)
+        N = p_embs.shape[0]
+        rows = list(np.arange(0, N))
+        train_rows = random.sample(rows, num_train_per_file)
+        train_emb = p_embs[train_rows] 
+        train_emb_lst.append(train_emb)
+
+    train_all_embs = np.vstack(train_emb_lst)
+    train_all_embs = np.float32(train_all_embs)
+    
+    D = train_all_embs.shape[1]
+    index = faiss.index_factory(D, factory_string, faiss.METRIC_INNER_PRODUCT)
+   
+    print('training index')
+    index.train(train_all_embs)
+    print('wrting trained index to [%s]' % index_file)
+    faiss.write_index(index, index_file) 
+
+def main():
+    args = get_args()
     if not os.path.isdir('data'):
         os.mkdir('data')
 
@@ -139,26 +186,23 @@ def create_index(args):
     exptr_dir = os.path.join(dataset_dir, args.dataset, args.experiment)
     data_file = os.path.join(exptr_dir, args.emb_file)
     trained_index_file = os.path.join(index_out_dir, 'trained.index')
-    OndiskIndexer.create(data_file, trained_index_file, args.num_train)
-    OndiskIndexer.index_data(trained_index_file, data_file, index_out_dir)
+    create_train(data_file, trained_index_file)
+    index_data(trained_index_file, data_file, index_out_dir)
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--experiment', type=str)
     parser.add_argument('--emb_file', type=str)
-    parser.add_argument('--num_train', type=int)
     args = parser.parse_args()
     return args
 
-def main():
-    args = get_args()
-    try:
-        create_index(args)
-    except ValueError as e:
-        print(e)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except ValueError as e:
+        print(e)
+    
     
      
