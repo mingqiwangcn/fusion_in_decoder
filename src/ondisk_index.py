@@ -98,6 +98,13 @@ def index_data(index_file, data_file, index_out_dir, block_size=5000000):
         os.remove(block_file_name)
 
 def get_index_options(num_vecs):
+    num_clusters = 4096
+    factory_string = 'IVF%s,Flat' % num_clusters
+    num_train = num_clusters * 1024
+    num_train = min(num_train, num_vecs)
+    return (factory_string, num_train)
+    
+    '''
     unit = 1e6 
     if num_vecs < unit:
         num_clusters = int(16 * math.sqrt(num_vecs))
@@ -126,6 +133,7 @@ def get_index_options(num_vecs):
 
     print('factory_string=%s, num_train=%d' % (factory_string, num_train))     
     return factory_string, num_train
+    '''
 
 def get_num_vecs(emb_file_lst):
     print('collecting the number of vectors')
@@ -149,6 +157,7 @@ def create_train(data_file, index_file):
     num_vecs = get_num_vecs(emb_file_lst)
     print('num_vecs=%d' % num_vecs)
     factory_string, num_train = get_index_options(num_vecs)
+    print('factory_string=%s, num_train=%d' % (factory_string, num_train))     
 
     num_train_per_file = num_train // len(emb_file_lst)
     
