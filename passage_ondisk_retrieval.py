@@ -91,7 +91,7 @@ def main(opt):
 
     # get top k results
     start_time_retrieval = time.time()
-    search_result = index.search(questions_embedding, top_n=args.n_docs, n_probe=16, batch_size=20) 
+    search_result = index.search(questions_embedding, top_n=args.n_docs, n_probe=128, batch_size=20) 
     logger.info(f'Search time: {time.time()-start_time_retrieval:.1f} s.')
 
     add_passages(data, search_result)
