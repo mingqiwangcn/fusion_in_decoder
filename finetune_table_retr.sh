@@ -16,5 +16,5 @@ python ./finetune_table_retr.py \
     --cuda 0 \
     --name ${chk_name} \
     --checkpoint_dir output \
-    --checkpoint_steps 3000 \
+    --checkpoint_steps 1000 \
 
