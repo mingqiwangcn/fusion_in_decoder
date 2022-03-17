@@ -9,8 +9,8 @@ chk_name=train_${dataset}_${exprt}
 python ./finetune_table_retr.py \
     --do_train \
     --model_path ./pretrained_models/tqa_reader_base \
-    --train_data ${exprt_dir}/fusion_retrieved_train.json \
-    --eval_data ${exprt_dir}/fusion_retrieved_dev.json \
+    --train_data ${exprt_dir}/fusion_retrieved_train.jsonl \
+    --eval_data ${exprt_dir}/fusion_retrieved_dev.jsonl \
     --n_context 100 \
     --per_gpu_batch_size 1 \
     --cuda 0 \
