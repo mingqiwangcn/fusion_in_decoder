@@ -4,7 +4,7 @@ if [ "$#" -ne 2 ]; then
 fi
 dataset=$1
 exprt=$2
-exprt_dir=/home/cc/code/open_table_discovery/table2question/dataset/${dataset}/sql_all_per_10/${exprt}
+exprt_dir=/home/cc/code/open_table_discovery/table2question/dataset/${dataset}/auto_sql/${exprt}
 chk_name=train_syt_${dataset}_${exprt} 
 python ./finetune_table_retr.py \
     --do_train \
@@ -17,4 +17,3 @@ python ./finetune_table_retr.py \
     --name ${chk_name} \
     --checkpoint_dir output \
     --checkpoint_steps 1000 \
-    --retr_model_type general \

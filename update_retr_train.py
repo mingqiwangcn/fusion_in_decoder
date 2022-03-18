@@ -5,17 +5,19 @@ import argparse
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, required=True)
-    parser.add_argument('--expr', type=str, required=True)
+    parser.add_argument('--data_dir', type=str, required=True)
     args = parser.parse_args()
     return args
 
 def main():
     args = get_args()
     
-    data_dir = '/home/cc/code/open_table_discovery/table2txt/dataset/' 
-    input_file = os.path.join(data_dir, args.dataset, args.expr, 'fusion_retrieved_train.jsonl_bak')
-    out_file = os.path.join(data_dir, args.dataset, args.expr, 'fusion_retrieved_train.jsonl.updated')
+    input_file = os.path.join(args.data_dir, 'fusion_retrieved_train.jsonl_bak') 
+    out_file = os.path.join(args.data_dir, 'fusion_retrieved_train.jsonl')
+    if os.path.exists(out_file):
+        print('output file (%s) already exists' % out_file)
+        return
+         
     f_o = open(out_file, 'w')
 
     top_n = 100
