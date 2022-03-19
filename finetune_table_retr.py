@@ -62,8 +62,19 @@ def get_retr_model(opt):
     return retr_model
 
 def write_predictions(f_o_pred, item, top_idxes):
-    item['sorted_idxes'] = top_idxes.tolist()
-    f_o_pred.write(json.dumps(item) + '\n')
+    qid = item['qid']
+    table_id_lst = item['table_id_lst']
+    question = item['question']
+    passages = item['passages']
+    tags = item['tags']
+    out_item = {
+        'qid':qid,
+        'table_id_lst':table_id_lst,
+        'question':question,
+        'passages':[passages[a] for a in top_idxes],
+        'tags':[tags[a] for a in top_idxes]
+    }
+    f_o_pred.write(json.dumps(out_item) + '\n')
 
 def log_metrics(epoc, metric_rec,
                 batch_data, batch_score, batch_answers, 
@@ -110,18 +121,11 @@ def log_metrics(epoc, metric_rec,
     return batch_sorted_idxes
 
 
-def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, 
-             model_tag=None, out_dir=None, collator=None):
+def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model_tag=None, out_dir=None):
     logger.info('Start evaluation')
     model.eval()
     retr_model.eval()
   
-    model_opt_info = {
-        'reader':model,
-        'get_score_info':get_score_info,
-        'collator':collator
-    }
-
     f_o_pred = None
     if out_dir is not None:
         out_pred_file = os.path.join(out_dir, 'pred_%s.jsonl' % model_tag)
@@ -138,15 +142,14 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
 
             scores, score_states, examples = get_score_info(model, fusion_batch, dataset)
             batch_data = get_batch_data(examples)
-            retr_scores = retr_model(batch_data, scores, score_states, opt_info=model_opt_info)    
-            merged_data = model_opt_info['merged_data']
-            batch_answers = get_batch_answers(merged_data)
+            retr_scores = retr_model(batch_data, scores, score_states)    
+            batch_answers = get_batch_answers(batch_data)
              
             t2 = time.time()
             time_span = t2 - t1
             total_time += time_span
            
-            log_metrics(epoc, metric_rec, merged_data, retr_scores, batch_answers, time_span, total_time, 
+            log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
                         (itr + 1), num_batch, loss=None, model_tag=model_tag, f_o_pred=f_o_pred) 
     
     if f_o_pred is not None:
@@ -166,13 +169,6 @@ def train(model, retr_model,
     global_steps = 0
     max_epoc = 10
     total_time = .0
-    
-    model_opt_info = {
-        'reader':model,
-        'get_score_info':get_score_info,
-        'collator':collator
-    }
-
     for epoc in range(max_epoc):
         metric_rec = fabric_utils.MetricRecorder()
         train_sampler = RandomSampler(train_dataset)
@@ -202,9 +198,8 @@ def train(model, retr_model,
 
             scores, score_states, examples = get_score_info(model, fusion_batch, train_dataset)
             batch_data = get_batch_data(examples)
-            retr_scores = retr_model(batch_data, scores, score_states, model_opt_info) 
-            merged_data = model_opt_info['merged_data']
-            batch_answers = get_batch_answers(merged_data) 
+            retr_scores = retr_model(batch_data, scores, score_states) 
+            batch_answers = get_batch_answers(batch_data) 
             loss = loss_fn(retr_scores, batch_answers)
             optimizer.zero_grad()
             if loss is None:
@@ -218,7 +213,8 @@ def train(model, retr_model,
             time_span = t2 - t1
             total_time += time_span
            
-            log_metrics(epoc, metric_rec, merged_data, retr_scores, batch_answers, time_span, total_time, 
+            
+            log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
                         (itr + 1), num_batch, loss.item()) 
             
             if global_steps % opt.checkpoint_steps == 0:
@@ -228,16 +224,13 @@ def train(model, retr_model,
                 show_tag = 'step=%d' % global_steps
                 evaluate(epoc, model, retr_model,
                          eval_dataset, eval_dataloader,
-                         tokenizer, opt, model_tag=show_tag, 
-                         out_dir=out_dir, collator=collator)
+                         tokenizer, opt, model_tag=show_tag, out_dir=out_dir)
                 retr_model.train() 
 
 def get_batch_answers(batch_data):
     batch_answers = []
     for item in batch_data:
-        gold_table_lst = item['table_id_lst']
-        passage_info_lst = item['passages']
-        answers = [{'em':int(a['tag'][0]['table_id'] in gold_table_lst)} for a in passage_info_lst]
+        answers = item['answers']
         batch_answers.append(answers)
     return batch_answers
 
@@ -251,13 +244,21 @@ def get_batch_data(fusion_examples):
     for f_example in fusion_examples:
         gold_table_lst = f_example['table_id_lst']
         ctx_data = f_example['ctxs']
+        
+        item_answers = []
+        for passage_info in ctx_data:
+            answer_info = {
+                'em':int(passage_info['tag']['table_id'] in gold_table_lst)
+            }
+            item_answers.append(answer_info)
+        
         item_data = {
             'qid':f_example['id'],
             'table_id_lst':gold_table_lst,
             'question':f_example['question'],
             'passages':[a['text'] for a in ctx_data],
             'p_id_lst':[a['id'] for a in ctx_data],
-            'answers':f_example['answers'],
+            'answers':item_answers,
             'tags':[a['tag'] for a in ctx_data]
         }
         batch_data.append(item_data)
@@ -383,8 +384,7 @@ def main():
         out_dir = os.path.join(opt.checkpoint_dir, opt.name)
         evaluate(0, model, retr_model,
                 eval_dataset, eval_dataloader,
-                tokenizer, opt, out_dir=out_dir, 
-                collator=collator_function)
+                tokenizer, opt, out_dir=out_dir)
 
     #logger.info(f'EM {100*exactmatch:.2f}, Total number of example {total}')
 
