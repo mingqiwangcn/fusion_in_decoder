@@ -14,11 +14,27 @@ class FusionRetrModel(nn.Module):
                         nn.Dropout(),
                         nn.Linear(D, 1)
         )
+        self.fusion_fnt_threshold = nn.Sequential(
+                        nn.Linear(D * 3, D),
+                        nn.ReLU(),
+                        nn.Dropout(),
+                        nn.Linear(D, 1)
+        )
+        self.fusion_fnt_merge = nn.Sequential(
+                        nn.Linear(D * 3, D),
+                        nn.ReLU(),
+                        nn.Dropout(),
+                        nn.Linear(D, 1)
+        )
+
     
-    def merge_passages(self, batch_data, batch_passage_scores):
+    def merge_passages(self, batch_data, batch_passage_scores, batch_threholds):
         batch_merged_data = []
         for item_idx, item in enumerate(batch_data):
             passage_scores = batch_passage_scores[item_idx]
+            passage_thresholds = batch_threholds[item_idx]
+            thresold_score = passage_thresholds.sum()
+            thresold_prob = torch.sigmoid(thresold_score)
             passage_lst = item['passages']
             tag_lst = item['tags']
             table_passage_dict = {}
@@ -32,27 +48,33 @@ class FusionRetrModel(nn.Module):
                 passage_info = {'passage':passage, 'score':passage_scores[p_idx], 'tag':tag_info}
                 table_passage_lst.append(passage_info) 
             
-            item_merged_lst = self.merge_by_table(table_passage_dict)
+            item_merged_lst = self.merge_by_table(table_passage_dict, thresold_prob)
             
             item_merged_data = {
                 'qid':item['qid'],
                 'question':item['question'],
                 'table_id_lst':item['table_id_lst'],
                 'answers':item['answers'],
-                'passages':item_merged_lst
+                'passages':item_merged_lst,
             }
             batch_merged_data.append(item_merged_data)
              
         return batch_merged_data  
     
-    def merge_by_table(self, table_passage_dict):
+    def merge_by_table(self, table_passage_dict, thresold_prob):
         merged_lst = []
         for table_id in table_passage_dict:
             table_passage_lst = table_passage_dict[table_id]
             score_lst = [a['score'] for a in table_passage_lst]
             scores = torch.stack(score_lst)
-            sorted_idxes = torch.argsort(-scores)
-            top_idxes = sorted_idxes[:3] 
+            prob_scores = torch.sigmoid(scores)
+            good_idxes = [idx for idx, prob in enumerate(prob_scores) if prob > thresold_prob]
+             
+            #sorted_idxes = torch.argsort(-scores)
+            top_idxes = good_idxes[:3]
+            if len(top_idxes) == 0:
+                top_idxes = torch.argsort(-scores)[:1]
+
             top_passage_lst = [table_passage_lst[a] for a in top_idxes]
             #merge small passages by row and col
             
@@ -67,8 +89,8 @@ class FusionRetrModel(nn.Module):
         return merged_lst 
      
     def forward(self, batch_data, fusion_scores, fusion_states, opt_info):
-        fusion_scores_redo = self.recompute_fusion_score(batch_data, fusion_scores, fusion_states)
-        batch_merged_data = self.merge_passages(batch_data, fusion_scores_redo)
+        fusion_scores_redo, fusion_thresholds = self.recompute_fusion_score(batch_data, fusion_scores, fusion_states)
+        batch_merged_data = self.merge_passages(batch_data, fusion_scores_redo, fusion_thresholds)
         merged_scores = self.compute_merged_scores(batch_merged_data, opt_info)
         return merged_scores
 
@@ -111,7 +133,7 @@ class FusionRetrModel(nn.Module):
             fusion_data = fusion_batch
             break
         fusion_scores, fusion_states, _ = get_score_info_func(reader_model, fusion_data, reader_dataset)
-        merged_scores = self.recompute_fusion_score(batch_merged_data, fusion_scores, fusion_states) 
+        merged_scores = self.recompute_fusion_score(batch_merged_data, fusion_scores, fusion_states, True) 
         opt_info['merged_data'] = batch_merged_data 
         return merged_scores
      
@@ -121,7 +143,7 @@ class FusionRetrModel(nn.Module):
         ret_scores = (scores - mean_score) / (std_score + 1e-5)
         return ret_scores
 
-    def recompute_fusion_score(self, batch_data, fusion_scores, fusion_states):
+    def recompute_fusion_score(self, batch_data, fusion_scores, fusion_states, merged=False):
         answer_states = fusion_states['answer_states']
         bsz, n_layers, _, emb_size = answer_states.size()
         query_passage_states = fusion_states['query_passage_states'] 
@@ -131,7 +153,12 @@ class FusionRetrModel(nn.Module):
         input_states = [answer_states, query_passage_states, answer_states * query_passage_states]
         input_states = torch.cat(input_states, dim=-1)
 
-        batch_scores = self.fusion_fnt(input_states).squeeze(-1)
+        if not merged:
+            batch_scores = self.fusion_fnt(input_states).squeeze(-1)
+            batch_thresholds = self.fusion_fnt_threshold(input_states).squeeze(-1)
+
+        else:
+            batch_scores = self.fusion_fnt_merge(input_states).squeeze(-1)
 
         batch_passage_scores = []
         for idx in range(len(batch_data)):
@@ -141,6 +168,9 @@ class FusionRetrModel(nn.Module):
             item_fusion_scores = fusion_scores[idx]
             passage_scores = self.std_norm(item_adapt_scores) # + self.std_norm(item_fusion_scores) 
             batch_passage_scores.append(passage_scores)
-                 
-        return batch_passage_scores 
+        
+        if not merged:
+            return batch_passage_scores, batch_thresholds
+        else:  
+            return batch_passage_scores 
          
