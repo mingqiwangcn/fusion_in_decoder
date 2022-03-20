@@ -7,10 +7,11 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, required=True)
     parser.add_argument('--mode', type=str, required=True)
+    parser.add_argument('--top_n', type=int, required=True)
     args = parser.parse_args()
     return args
 
-def get_top_passages(item):
+def select_passages(item):
     num_max_passages = 10
     ctx_lst = item['ctxs']
     updated_ctx_lst = []
@@ -34,13 +35,11 @@ def main():
     is_train = (args.mode == 'train')
     f_o = open(out_file, 'w')
 
-    top_n = 200
     with open(input_file) as f:
         for line in tqdm(f):
             item = json.loads(line)
-            get_top_passages(item)
             gold_table_lst = item['table_id_lst']
-            ctxs = item['ctxs'][:top_n]
+            ctxs = item['ctxs'][:args.top_n]
             
             if is_train:
                 labels = [int(a['tag']['table_id'] in gold_table_lst) for a in ctxs]
