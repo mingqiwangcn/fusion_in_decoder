@@ -140,9 +140,9 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model
         for itr, fusion_batch in tqdm(enumerate(dataloader), total=num_batch):
             t1 = time.time()
 
-            scores, score_states, examples = get_score_info(model, fusion_batch, dataset)
+            scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, dataset)
             batch_data = get_batch_data(examples)
-            retr_scores = retr_model(batch_data, scores, score_states)    
+            retr_scores = retr_model(batch_data, scores, score_states, context_mask)    
             batch_answers = get_batch_answers(batch_data)
              
             t2 = time.time()
@@ -196,9 +196,9 @@ def train(model, retr_model,
         for itr, fusion_batch in tqdm(enumerate(train_dataloader), total=num_batch):
             t1 = time.time()
 
-            scores, score_states, examples = get_score_info(model, fusion_batch, train_dataset)
+            scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, train_dataset)
             batch_data = get_batch_data(examples)
-            retr_scores = retr_model(batch_data, scores, score_states) 
+            retr_scores = retr_model(batch_data, scores, score_states, context_mask) 
             batch_answers = get_batch_answers(batch_data) 
             loss = loss_fn(retr_scores, batch_answers)
             optimizer.zero_grad()
@@ -283,8 +283,8 @@ def get_score_info(model, batch_data, dataset):
             example = dataset.data[idx[k]]
             example['ctxs'] = example['ctxs'][:num_passages]
             batch_examples.append(example)
-        
-    return crossattention_scores, score_states, batch_examples
+    context_mask = context_mask.to(crossattention_scores.device)
+    return crossattention_scores, score_states, batch_examples, context_mask
     
 
 def show_precision(count, table_pred_results):
