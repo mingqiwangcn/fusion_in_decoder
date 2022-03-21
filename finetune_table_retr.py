@@ -266,8 +266,94 @@ def get_batch_data(fusion_examples):
     return batch_data 
     
 def get_score_info(model, batch_data, dataset):
+    # context_ids, (bsz, num_passages, num_tokens)
+    (batch_index_data, _, _, batch_passage_id_data, batch_passage_mask_data, batch_passage_tag_data) = batch_data
+  
+    batch_attention_scores = []
+    batch_answer_states = []
+    batch_passage_states = []
+    batch_examples = []
+     
+    for item_pos, item_index in enumerate(batch_index_data):
+        table_data_dict = {}
+        passage_id_data = batch_passage_id_data[item_pos]
+        passage_mask_data = batch_passage_mask_data[item_pos]
+        passage_tag_data = batch_passage_tag_data[item_pos]
+
+        for pos, tag in enumerate(passage_tag_data):
+            table_id = tag['table_id']
+            if table_id not in table_data_dict:
+                table_data_dict[table_id] = {'id':[], 'mask':[], 'pos':[]}
+            
+            id_data_lst = table_data_dict[table_id]['id']
+            id_data_lst.append(passage_id_data[pos])
+            masK_data_lst = table_data_dict[table_id]['mask']
+            masK_data_lst.append(passage_mask_data[pos])
+            pos_lst = table_data_dict[table_id]['pos']
+            pos_lst.append(pos) 
+       
+        num_passages = len(passage_tag_data)
+        item_attention_scores = [None for a in range(num_passages)]
+        item_answer_states = [None for a in range(num_passages)]
+        item_passage_states = [None for a in range(num_passages)]
+
+        for table_id in table_data_dict:
+            id_lst = table_data_dict[table_id]['id']
+            group_id_data = torch.stack(id_lst) 
+            mask_lst = table_data_dict[table_id]['mask']
+            group_mask_data = torch.stack(mask_lst)
+            
+            group_idxes = item_index.unsqueeze(0)
+            group_id_data = group_id_data.unsqueeze(0)
+            group_mask_data = group_mask_data.unsqueeze(0)
+    
+            group_data = (group_idxes, group_id_data, group_mask_data)
+            attention_scores, score_states = get_table_score_info(model, group_data, dataset)
+            attention_scores = attention_scores.squeeze(0)
+            
+            answer_states = score_states['answer_states'].squeeze(0)
+            assert(answer_states.shape[1] == 1)
+            answer_states = answer_states.unsqueeze(2)
+            #answer_states  (n_layers, 1, 1, n_features)
+            
+            query_passage_states = score_states['query_passage_states'].squeeze(0)
+            n_layers, _, n_features = query_passage_states.shape
+
+            n_table_passages = group_mask_data.shape[1]
+            n_max_tokens = group_mask_data.shape[2]
+            passage_states = query_passage_states.view(n_layers, n_table_passages, -1, n_features)
+             
+            #passage_states (n_layers, n_passage, n_tokens, n_features)
+
+            pos_lst = table_data_dict[table_id]['pos']
+            for offset, pos in enumerate(pos_lst):
+                item_attention_scores[pos] = attention_scores[offset].unsqueeze(0)
+                item_answer_states[pos] = answer_states.expand(-1, -1, n_max_tokens, -1)
+                item_passage_states[pos] = passage_states[:,offset:(offset+1),:,:] 
+        
+        item_attention_scores = torch.cat(item_attention_scores, dim=0).unsqueeze(0)
+        batch_attention_scores.append(item_attention_scores)
+        
+        item_answer_states = torch.cat(item_answer_states, dim=1).view(n_layers, -1, n_features).unsqueeze(0)
+        batch_answer_states.append(item_answer_states)
+         
+        item_passage_states = torch.cat(item_passage_states, dim=1).view(n_layers, -1, n_features).unsqueeze(0) 
+        batch_passage_states.append(item_passage_states)
+        
+        item_example = dataset.data[item_index]
+        item_example['ctxs'] = item_example['ctxs'][:num_passages]
+        batch_examples.append(item_example) 
+    
+    batch_attention_scores = torch.cat(batch_attention_scores, dim=0)
+    batch_answer_states = torch.cat(batch_answer_states, dim=0)
+    batch_passage_states = torch.cat(batch_passage_states, dim=0)
+    score_states = {'answer_states': batch_answer_states, 'query_passage_states': batch_passage_states}
+    batch_masks = batch_passage_mask_data.to(batch_attention_scores.device) 
+    return (batch_attention_scores, score_states, batch_examples, batch_masks)
+
+def get_table_score_info(model, batch_data, dataset):
     with torch.no_grad():
-        (idx, _, _, context_ids, context_mask, _) = batch_data
+        (idx, context_ids, context_mask) = batch_data
         model.reset_score_storage()
         outputs = model.generate(
             input_ids=context_ids.cuda(),
@@ -277,14 +363,7 @@ def get_score_info(model, batch_data, dataset):
             num_return_sequences=Num_Answers
         )
         crossattention_scores, score_states = model.get_crossattention_scores(context_mask.cuda())
-        num_passages = crossattention_scores.shape[1]
-        batch_examples = [] 
-        for k, _ in enumerate(outputs):
-            example = dataset.data[idx[k]]
-            example['ctxs'] = example['ctxs'][:num_passages]
-            batch_examples.append(example)
-    context_mask = context_mask.to(crossattention_scores.device)
-    return crossattention_scores, score_states, batch_examples, context_mask
+    return crossattention_scores, score_states 
     
 
 def show_precision(count, table_pred_results):
