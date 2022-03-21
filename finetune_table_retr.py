@@ -363,6 +363,14 @@ def get_table_score_info(model, batch_data, dataset):
             num_return_sequences=Num_Answers
         )
         crossattention_scores, score_states = model.get_crossattention_scores(context_mask.cuda())
+    
+    answer_states = score_states['answer_states']
+    answer_states = answer_states[:,-1:,:,:]
+    score_states['answer_states'] = answer_states
+
+    query_passage_states = score_states['query_passage_states']
+    query_passage_states = query_passage_states[:,-1:,:,:]
+    score_states['query_passage_states'] = query_passage_states
     return crossattention_scores, score_states 
     
 
