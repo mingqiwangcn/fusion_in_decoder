@@ -22,7 +22,6 @@ import json
 from src.retr_model import FusionRetrModel 
 from src.retr_loss import FusionRetrLoss
 
-from src.general_retr_model import FusionGeneralRetrModel
 from src.general_retr_loss import FusionGeneralRetrLoss
 
 import logging
@@ -48,12 +47,7 @@ def get_loss_fn(opt):
     return loss_fn
 
 def get_retr_model(opt):
-    if (opt.retr_model_type is None) or (opt.retr_model_type == ''):
-        retr_model = FusionRetrModel()
-        logger.info('retr_model, FusionRetrModel')
-    else:
-        retr_model = FusionGeneralRetrModel()
-        logger.info('retr_model, FusionGeneralRetrModel')
+    retr_model = FusionRetrModel()
     if opt.fusion_retr_model is not None:
         state_dict = torch.load(opt.fusion_retr_model, map_location=opt.device)
         retr_model.load_state_dict(state_dict)
