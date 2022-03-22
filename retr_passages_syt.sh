@@ -16,4 +16,4 @@ python ./passage_ondisk_retrieval.py \
     --passage_file ./data/on_disk_index_${dataset}_${expr}/${file_name} \
     --data ${sql_data_dir}/fusion_query_parts/fusion_query_${part}.jsonl \
     --output_path ${out_dir}/fusion_retrieved_${part}.jsonl \
-    --n-docs 500 \
+    --n-docs 100 \
