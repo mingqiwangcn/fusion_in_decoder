@@ -18,4 +18,4 @@ python ./passage_ondisk_retrieval.py \
     --passage_file ${passage_file} \
     --data ${query_file} \
     --output_path ${out_retr_file} \
-    --n-docs 500 \
+    --n-docs 100 \
