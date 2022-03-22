@@ -9,10 +9,10 @@ class FusionRetrModel(nn.Module):
         
         self.passage_fnt = nn.Linear(D * 3, D)
 
-        self.table_fnt = nn.Linear(D * 3, 128)
+        self.table_fnt = nn.Linear(D * 3, D)
 
         self.feature_fnt = nn.Sequential(
-                        nn.Linear(D + 128, D),
+                        nn.Linear(D * 2, D),
                         nn.ReLU(),
                         nn.Dropout(),
                         nn.Linear(D, 1)
@@ -56,7 +56,7 @@ class FusionRetrModel(nn.Module):
             for p_table_id in table_feature_dict:
                 p_table_feature_lst = table_feature_dict[p_table_id]
                 table_features = torch.cat(p_table_feature_lst, dim=1)
-                table_aggr_feature = table_features.mean(dim=1, keepdim=True)
+                table_aggr_feature = table_features.max(dim=1, keepdim=True)[0]
                 aggr_feature_dict[p_table_id] = table_aggr_feature
            
             p_aggr_feature_lst = []
