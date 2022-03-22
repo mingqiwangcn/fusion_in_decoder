@@ -96,7 +96,7 @@ class FusionRetrModel(nn.Module):
             item_masked_scores = item_scores * item_masks
             item_adapt_scores = item_masked_scores.sum(dim=[0,2])
             item_fusion_scores = fusion_scores[idx]
-            passage_scores = item_adapt_scores + item_fusion_scores
+            passage_scores = item_adapt_scores # + item_fusion_scores
             batch_passage_scores.append(passage_scores)
                  
         return batch_passage_scores 
