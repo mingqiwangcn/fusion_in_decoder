@@ -75,10 +75,10 @@ class FusionRetrModel(nn.Module):
 
     def recompute_fusion_score(self, batch_data, fusion_scores, fusion_states, passage_masks):
         answer_states = fusion_states['answer_states']
-        #answer_states = answer_states[:, -1:, :, :]
+        answer_states = answer_states[:, -2:, :, :]
         bsz, n_layers, _, emb_size = answer_states.size()
         query_passage_states = fusion_states['query_passage_states'] 
-        #query_passage_states = query_passage_states[:, -1:, :, :]
+        query_passage_states = query_passage_states[:, -2:, :, :]
         _, _, n_tokens, _ = query_passage_states.size()
         
         answer_states = answer_states.expand(bsz, n_layers, n_tokens, emb_size)
@@ -96,7 +96,7 @@ class FusionRetrModel(nn.Module):
             item_masked_scores = item_scores * item_masks
             item_adapt_scores = item_masked_scores.sum(dim=[0,2])
             item_fusion_scores = fusion_scores[idx]
-            passage_scores = self.std_norm(item_adapt_scores) + self.std_norm(item_fusion_scores) 
+            passage_scores = item_adapt_scores + item_fusion_scores
             batch_passage_scores.append(passage_scores)
                  
         return batch_passage_scores 
