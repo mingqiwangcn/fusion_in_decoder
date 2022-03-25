@@ -309,6 +309,9 @@ def main():
     opt = options.parse()
     src.slurm.init_distributed_mode(opt)
     src.slurm.init_signal_handler()
+    
+    assert(opt.world_size == 1)
+
     opt.train_batch_size = opt.per_gpu_batch_size * max(1, opt.world_size)
     dir_path = Path(opt.checkpoint_dir)/opt.name
     directory_exists = dir_path.exists()
