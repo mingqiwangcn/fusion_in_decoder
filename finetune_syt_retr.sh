@@ -1,10 +1,11 @@
-if [ "$#" -ne 2 ]; then
-    echo "Usage: ./finetune_syt_retr_.sh <dataset> <experiment>"
+if [ "$#" -ne 3 ]; then
+    echo "Usage: ./finetune_syt_retr_.sh <dataset> <experiment> <sql_expr>"
     exit
 fi
 dataset=$1
 exprt=$2
-exprt_dir=/home/cc/code/open_table_discovery/table2question/dataset/${dataset}/auto_sql/${exprt}
+sql_expr=$3
+exprt_dir=/home/cc/code/open_table_discovery/table2question/dataset/${dataset}/${sql_expr}/${exprt}
 chk_name=train_syt_${dataset}_${exprt} 
 python ./finetune_table_retr.py \
     --do_train \
