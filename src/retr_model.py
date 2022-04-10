@@ -19,8 +19,8 @@ class FusionRetrModel(nn.Module):
         )
          
     def forward(self, batch_data, fusion_scores, fusion_states, passage_masks, opts=None):
-        fusion_scores_redo = self.recompute_fusion_score(batch_data, fusion_scores, fusion_states, 
-                                                         passage_masks, opts=opts)
+        fusion_scores_redo = self.recompute_fusion_score(batch_data, fusion_scores, fusion_states, passage_masks,
+                             opts=opts)
         return fusion_scores_redo
  
     def std_norm(self, scores):
@@ -28,57 +28,18 @@ class FusionRetrModel(nn.Module):
         std_score = scores.std()
         ret_scores = (scores - mean_score) / (std_score + 1e-5)
         return ret_scores
-    
-    def compute_reg_score(self, opts, item, passage_states, item_passage_masks):
-        reg_score_lst = opts.get('reg_score', None)
-        if reg_score_lst is None:
-            opts['reg_score'] = []
-        
-        reg_score_lst = opts['reg_score']
-        
-        tags = item['tags']
-        table_id_lst = item['table_id_lst']
-      
-        pos_state_dict = {} 
-        for idx, tag_info in enumerate(tags):
-            table_id = tag_info['table_id']
-            if table_id not in table_id_lst:
-                continue
-            
-            if table_id not in pos_state_dict:
-                pos_state_dict[table_id] = []
-            groups = pos_state_dict[table_id]
-            p_state = passage_states[:,idx:(idx+1),:,:]
-            n_layer, _, n_tokens, n_features = p_state.shape
-            p_mask = item_passage_masks[idx].view(1, 1, n_tokens, 1)
-            p_mask_expand = p_mask.expand(n_layer, 1, n_tokens, n_features)
-            p_masked_state = p_state * p_mask_expand
-            groups.append(p_masked_state)
-        
-        for table_id in pos_state_dict:
-            group_states = torch.cat(pos_state_dict[table_id], dim=1)
-            group_mean_states = group_states.mean(dim=(0, 2))
-            scores = torch.mm(group_mean_states, group_mean_states.t())
-            reg_mean_score = torch.triu(scores, diagonal=1).mean()
-            reg_score_lst.append(reg_mean_score)
 
-
-    def get_table_aggr_states(self, batch_data, batch_input_states, passage_masks, opts=None):
+    def get_table_aggr_states(self, batch_data, batch_input_states, opts=None):
         batch_passage_states = self.passage_fnt(batch_input_states)
         bsz, num_layers, _, num_feature_1 = batch_passage_states.shape
         batch_p_table_states = self.table_fnt(batch_input_states) 
         _, _, _, num_feature_2 = batch_p_table_states.shape
-        #import pdb; pdb.set_trace()
+         
         item_passage_feature_lst = []
         for idx, item in enumerate(batch_data):
             num_passages = len(item['passages'])
             passage_states = batch_passage_states[idx].view(num_layers, num_passages, -1, num_feature_1)
             p_table_states = batch_p_table_states[idx].view(num_layers, num_passages, -1, num_feature_2)
-            if opts is not None:
-                item_passage_masks = passage_masks[idx]
-                #self.compute_reg_score(opts, item, passage_states, item_passage_masks)
-                self.compute_reg_score(opts, item, p_table_states, item_passage_masks)
-
             tag_lst = item['tags']
             table_feature_dict = {}
             aggr_feature_dict = {}
@@ -98,7 +59,14 @@ class FusionRetrModel(nn.Module):
                 table_features = torch.cat(p_table_feature_lst, dim=1)
                 table_aggr_feature = table_features.max(dim=1, keepdim=True)[0]
                 aggr_feature_dict[p_table_id] = table_aggr_feature
-           
+
+                table_reg_score = self.compute_reg_score(table_features)
+                reg_score_lst = opts.get('reg_score', None)
+                if reg_score_lst is None:
+                    opts['reg_score'] = []
+                reg_score_lst = opts['reg_score']
+                reg_score_lst.append(table_reg_score)
+
             p_aggr_feature_lst = []
             for table_id in p_table_lst:
                 aggr_feature = aggr_feature_dict[table_id]
@@ -113,6 +81,13 @@ class FusionRetrModel(nn.Module):
         batch_passage_features = torch.cat(item_passage_feature_lst, dim=0)
         return batch_passage_features 
 
+    def compute_reg_score(self, table_features):
+        n_layer, n_passages, n_tokens, n_feature = table_features.shape
+        states = table_features.mean(dim=(0,2))
+        scores = torch.mm(states, states.t())
+        reg_score = torch.triu(scores, diagonal=1).mean() 
+        return reg_score
+
     def recompute_fusion_score(self, batch_data, fusion_scores, fusion_states, passage_masks, opts=None):
         answer_states = fusion_states['answer_states']
         answer_states = answer_states[:, -1:, :, :]
@@ -125,7 +100,7 @@ class FusionRetrModel(nn.Module):
         input_states = [answer_states, query_passage_states, answer_states * query_passage_states]
         input_states = torch.cat(input_states, dim=-1)
        
-        p_aggr_features = self.get_table_aggr_states(batch_data, input_states, passage_masks, opts=opts)
+        p_aggr_features = self.get_table_aggr_states(batch_data, input_states, opts=opts)
         batch_scores = self.feature_fnt(p_aggr_features).squeeze(-1)
        
         batch_passage_scores = []
