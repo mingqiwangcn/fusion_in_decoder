@@ -192,9 +192,10 @@ def train(model, retr_model,
 
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, train_dataset)
             batch_data = get_batch_data(examples)
-            retr_scores = retr_model(batch_data, scores, score_states, context_mask) 
+            opts = {}
+            retr_scores = retr_model(batch_data, scores, score_states, context_mask, opts=opts) 
             batch_answers = get_batch_answers(batch_data) 
-            loss = loss_fn(retr_scores, batch_answers)
+            loss = loss_fn(retr_scores, batch_answers, opts=opts)
             optimizer.zero_grad()
             if loss is None:
                 continue

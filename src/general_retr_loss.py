@@ -8,7 +8,7 @@ class FusionGeneralRetrLoss(nn.Module):
         super(FusionGeneralRetrLoss, self).__init__()
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(self, batch_score, batch_answers):
+    def forward(self, batch_score, batch_answers, opts=None):
         batch_loss = .0
         batch_num = 0
         
@@ -29,6 +29,10 @@ class FusionGeneralRetrLoss(nn.Module):
 
         if batch_num > 0: 
             loss = batch_loss / batch_num
+            if opts is not None:
+                reg_score_lst = opts['reg_score']
+                teg_loss = torch.stack(reg_score_lst).mean()
+                loss += teg_loss
         else:
             loss = None
         return loss
