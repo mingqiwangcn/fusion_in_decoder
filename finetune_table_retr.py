@@ -303,6 +303,12 @@ def set_logger(opt):
     file_hander = logging.FileHandler(file_path, 'w')
     logger.addHandler(file_hander)
 
+def print_args(opts):
+    str_info = 'train_data=%s \n eval_data=%s \n n_context=%d \n checkpoint_dir=%s \n name=%s \n retr_model_type=%s' % (
+                opts.train_data, opts.eval_data, opts.n_context, 
+                opts.checkpoint_dir, opts.name, opts.retr_model_type)
+    logger.info(str_info)  
+
 def main():
     options = Options()
     options.add_reader_options()
@@ -324,6 +330,8 @@ def main():
     dir_path.mkdir(parents=True, exist_ok=True)
     global logger
     set_logger(opt)
+   
+    print_args(opt)
     
     if opt.write_results:
         (dir_path / 'test_results').mkdir(parents=True, exist_ok=True)
