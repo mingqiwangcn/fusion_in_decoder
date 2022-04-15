@@ -208,7 +208,6 @@ def train(model, retr_model,
             time_span = t2 - t1
             total_time += time_span
            
-            
             log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
                         (itr + 1), num_batch, loss.item()) 
             
@@ -216,11 +215,12 @@ def train(model, retr_model,
                 model_tag = 'step_%d' % global_steps
                 out_dir = os.path.join(opt.checkpoint_dir, opt.name)
                 save_model(out_dir, retr_model, epoc, tag=model_tag) 
-                show_tag = 'step=%d' % global_steps
-                evaluate(epoc, model, retr_model,
-                         eval_dataset, eval_dataloader,
-                         tokenizer, opt, model_tag=show_tag, out_dir=out_dir)
-                retr_model.train() 
+                if opt.eval_in_train: 
+                    show_tag = 'step=%d' % global_steps
+                    evaluate(epoc, model, retr_model,
+                             eval_dataset, eval_dataloader,
+                             tokenizer, opt, model_tag=show_tag, out_dir=out_dir)
+                    retr_model.train() 
 
 def get_batch_answers(batch_data):
     batch_answers = []

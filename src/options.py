@@ -78,6 +78,7 @@ class Options():
         self.parser.add_argument('--cuda', type=int, default=0)
         self.parser.add_argument('--train_qas_file', type=str)
         self.parser.add_argument('--eval_qas_file', type=str)
+        self.parser.add_argument('--eval_in_train', type=int, default=0)
 
         # dataset parameters
         self.parser.add_argument("--per_gpu_batch_size", default=1, type=int, 
