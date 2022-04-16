@@ -19,5 +19,5 @@ python ./finetune_table_retr.py \
     --checkpoint_dir output \
     --checkpoint_steps 1000 \
     --retr_model_type general \
-    --eval_in_train 0 \
+    --eval_in_train 1 \
 
