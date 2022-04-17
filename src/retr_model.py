@@ -61,7 +61,7 @@ class FusionRetrModel(nn.Module):
                 table_aggr_feature = table_features.max(dim=1, keepdim=True)[0]
                 aggr_feature_dict[p_table_id] = table_aggr_feature
                 
-                if (opts is not None) and (p_table_id in gold_table_id_lst):
+                if opts is not None:
                     table_reg_score = self.compute_reg_score(table_features)
                     reg_score_lst = opts.get('reg_score', None)
                     if reg_score_lst is None:
