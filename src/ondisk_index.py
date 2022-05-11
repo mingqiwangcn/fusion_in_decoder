@@ -28,7 +28,7 @@ class OndiskIndexer:
     def search(self, query, top_n=500, n_probe=16, batch_size=10):
         result = []
         N = len(query)
-        for idx in tqdm(range(0, N, batch_size)):
+        for idx in range(0, N, batch_size):
             pos = idx + batch_size
             batch_query = query[idx:pos]
             batch_result = self.batch_search(batch_query, top_n=top_n, n_probe=n_probe)

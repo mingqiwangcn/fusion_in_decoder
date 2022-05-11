@@ -29,37 +29,28 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-def embed_questions(opt, data, model, tokenizer):
-    batch_size = opt.per_gpu_batch_size * opt.world_size
+def retrieve_data(opt, index, data, model, tokenizer, f_o):
+    batch_size = 1
     dataset = src.data.Dataset(data, n_context=1)
     collator = src.data.Collator(opt.question_maxlength, tokenizer)
     dataloader = DataLoader(dataset, batch_size=batch_size, drop_last=False, num_workers=10, collate_fn=collator)
     model.eval()
-    embedding = []
     with torch.no_grad():
-        for k, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-            (idx, _, _, question_ids, question_mask, _) = batch
-            output = model.embed_text(
+        for batch in tqdm(dataloader):
+            (idxes, _, _, question_ids, question_mask, _) = batch
+            out_emb = model.embed_text(
                 text_ids=question_ids.to(opt.device).view(-1, question_ids.size(-1)), 
                 text_mask=question_mask.to(opt.device).view(-1, question_ids.size(-1)), 
                 apply_mask=model.config.apply_question_mask,
                 extract_cls=model.config.extract_cls,
             )
-            embedding.append(output)
-
-    embedding = torch.cat(embedding, dim=0)
-    logger.info(f'Questions embeddings shape: {embedding.size()}')
-
-    return embedding.cpu().numpy()
-
-def add_passages(data, result):
-    # add passages to original data
-    merged_data = []
-    assert len(data) == len(result)
-    for i, d in enumerate(data):
-        item_result = result[i]
-        ctxs_num = len(item_result)
-        d['ctxs'] =[
+            query_emb = out_emb.cpu().numpy()
+            result_lst = index.search(query_emb, top_n=opt.n_docs, n_probe=128, batch_size=1)
+            assert(1 == len(result_lst))
+            item_result = result_lst[0]
+            data_item = data[idxes[0]]
+            ctxs_num = len(item_result)
+            data_item['ctxs'] =[
                 {
                     'id': int(item_result[c]['p_id']),
                     'title': '',
@@ -67,7 +58,10 @@ def add_passages(data, result):
                     'score': float(item_result[c]['score']),
                     'tag':item_result[c]['tag']
                 } for c in range(ctxs_num)
-            ] 
+            ]
+            f_o.write(json.dumps(data_item) + '\n') 
+
+    #logger.info(f'Questions embeddings shape: {embedding.size()}')
 
 def main(opt):
     if os.path.exists(args.output_path):
@@ -87,20 +81,12 @@ def main(opt):
 
     index = OndiskIndexer(args.index_file, args.passage_file)
 
-    questions_embedding = embed_questions(opt, data, model, tokenizer)
-
-    # get top k results
-    start_time_retrieval = time.time()
-    search_result = index.search(questions_embedding, top_n=args.n_docs, n_probe=128, batch_size=20) 
-    logger.info(f'Search time: {time.time()-start_time_retrieval:.1f} s.')
-
-    add_passages(data, search_result)
     output_path = Path(args.output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
      
-    with open(args.output_path, 'w') as fout:
-        for out_item in tqdm(data):
-            fout.write(json.dumps(out_item) + '\n')
+    with open(args.output_path, 'w') as f_o:
+        retrieve_data(opt, index, data, model, tokenizer, f_o)
+
     logger.info(f'Saved results to {args.output_path}')
 
 def read_passages(data_file):
