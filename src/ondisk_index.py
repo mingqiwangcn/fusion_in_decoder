@@ -25,36 +25,48 @@ class OndiskIndexer:
                 passage_dict[int(p_id)] = item 
         return passage_dict
     
-    def search(self, query, top_n=500, n_probe=16, batch_size=10):
+    def search(self, query, top_n=100, n_probe=16, min_tables=5, max_retr=1000):
         result = []
         N = len(query)
-        for idx in range(0, N, batch_size):
-            pos = idx + batch_size
+        for idx in range(0, N):
+            pos = idx + 1
             batch_query = query[idx:pos]
-            batch_result = self.batch_search(batch_query, top_n=top_n, n_probe=n_probe)
-            result.extend(batch_result)
+            satified=False
+            num_retr = top_n
+            step = 100
+            step_mlp = 1
+            while (not satified):
+                item_passage_lst = self.one_query_search(batch_query, top_n=num_retr, n_probe=n_probe)
+                table_lst = [a['tag']['table_id'] for a in item_passage_lst]
+                table_set = set(table_lst)
+                if len(table_set) < min_tables:
+                    num_retr = top_n + step * step_mlp
+                    step_mlp *= 2
+                    if num_retr > max_retr:
+                        satified = True
+                else:
+                    satified = True 
+
+            result.append(item_passage_lst)
         return result
          
-    def batch_search(self, query, top_n=10, n_probe=16):
+    def one_query_search(self, query, top_n=10, n_probe=16):
+        assert(len(query) == 1)
         self.index.nprobe = n_probe
         batch_dists, batch_p_ids = self.index.search(query, top_n)
-        batch_result = []
-        num_batch = len(query)
-        for item_idx in range(num_batch):
-            item_result = []
-            p_id_lst = batch_p_ids[item_idx]
-            p_dist_lst = batch_dists[item_idx]
-            for idx, p_id in enumerate(p_id_lst):
-                passage_info = self.passage_dict[int(p_id)]
-                out_item = {
-                    'p_id':p_id,
-                    'passage':passage_info['passage'],
-                    'score':p_dist_lst[idx],
-                    'tag':passage_info['tag']
-                }
-                item_result.append(out_item)
-            batch_result.append(item_result)
-        return batch_result
+        item_result = []
+        p_id_lst = batch_p_ids[0]
+        p_dist_lst = batch_dists[0]
+        for idx, p_id in enumerate(p_id_lst):
+            passage_info = self.passage_dict[int(p_id)]
+            out_item = {
+                'p_id':p_id,
+                'passage':passage_info['passage'],
+                'score':p_dist_lst[idx],
+                'tag':passage_info['tag']
+            }
+            item_result.append(out_item)
+        return item_result
 
 # end of class OndiskIndexer 
 
