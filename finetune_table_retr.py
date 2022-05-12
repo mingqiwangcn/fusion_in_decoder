@@ -27,7 +27,7 @@ from src.general_retr_loss import FusionGeneralRetrLoss
 import logging
 import torch.optim as optim
 import time
-from fabric_qa import utils as fabric_utils
+from src.retr_utils import MetricRecorder, get_top_metrics
 
 Num_Answers = 1
 global_steps = 0
@@ -72,7 +72,7 @@ def write_predictions(f_o_pred, item, top_idxes):
 
 def log_metrics(epoc, metric_rec,
                 batch_data, batch_score, batch_answers, 
-                time_span, total_time,
+                time_used, total_time,
                 itr, num_batch, 
                 loss=None, model_tag=None, f_o_pred=None):
     batch_size = len(batch_score)
@@ -82,21 +82,19 @@ def log_metrics(epoc, metric_rec,
         item_scores = batch_score[b_idx]
         answer_scores = item_scores 
         scores = answer_scores.data.cpu().numpy()
-        top_m = min(len(scores), 30)
-        sorted_idxes = np.argpartition(-scores, range(top_m))[:top_m]
+        sorted_idxes = np.argsort(-scores)
         item_answer_lst = batch_answers[b_idx]
-        #assert(len(sorted_idxes) == len(item_answer_lst))
-        ems = [item_answer_lst[idx]['em'] for idx in sorted_idxes]
-        f1s = ems
-        metric_rec.update(ems, f1s)
+        sorted_ems = [item_answer_lst[idx]['em'] for idx in sorted_idxes]
+        top_metrics = get_top_metrics(sorted_idxes, sorted_ems, batch_data[b_idx], 5)
+        metric_rec.update(top_metrics)
+        
         batch_sorted_idxes.append(sorted_idxes)
         answer_num_lst.append(len(sorted_idxes))
         
         if f_o_pred is not None:
             write_predictions(f_o_pred, batch_data[b_idx], sorted_idxes)
 
-    max_answer_num = max(answer_num_lst)
-    metric_mean = metric_rec.get_mean()
+    metric_dict = metric_rec.get_mean()
     str_info = ('epoc=%d ' % epoc) if epoc is not None else ''
     if loss is None:
         str_info = ' ' + str_info
@@ -104,9 +102,11 @@ def log_metrics(epoc, metric_rec,
         str_info += '%s ' % model_tag
     if not loss is None:
         str_info += 'loss=%.6f ' % loss
-
-    str_info += 'p@1=%.2f p@%d=%.2f time=%.2f total=%.2f %d/%d'\
-             % (metric_mean[0], max_answer_num, metric_mean[2], time_span, total_time, itr, num_batch)
+    
+    for max_top in metric_dict:
+        str_info += 'p@%d=%.2f ' % (max_top, metric_dict[max_top]['metric_mean'])
+    
+    str_info += 'time=%.2f total=%.2f %d/%d' % (time_used, total_time, itr, num_batch)
     
     if loss is not None:
         str_info += ' global_steps=%d' % global_steps
@@ -125,7 +125,7 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model
         out_pred_file = os.path.join(out_dir, 'pred_%s.jsonl' % model_tag)
         f_o_pred = open(out_pred_file, 'w')
    
-    metric_rec = fabric_utils.MetricRecorder() 
+    metric_rec = MetricRecorder([1, 3, 5]) 
     total_time = .0 
     model.overwrite_forward_crossattention()
     model.reset_score_storage()
@@ -164,7 +164,7 @@ def train(model, retr_model,
     max_epoc = 10
     total_time = .0
     for epoc in range(max_epoc):
-        metric_rec = fabric_utils.MetricRecorder()
+        metric_rec = MetricRecorder([1, 3, 5])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
