@@ -20,13 +20,15 @@ class Dataset(torch.utils.data.Dataset):
                  question_prefix=Question_Prefix,
                  title_prefix='title:',
                  passage_prefix='context:',
-                 sort_by_score=False
+                 sort_by_score=False,
+                 ignore_context=False
                  ):
         self.data = data
         self.n_context = n_context
         self.question_prefix = question_prefix
         self.title_prefix = title_prefix
         self.passage_prefix = passage_prefix
+        self.ignore_context = ignore_context
         if sort_by_score:
             self.sort_data()
 
@@ -47,7 +49,7 @@ class Dataset(torch.utils.data.Dataset):
         question = self.question_prefix + " " + example['question']
         target = self.get_target(example)
 
-        if 'ctxs' in example:
+        if ('ctxs' in example) and (not self.ignore_context):
             f = self.title_prefix + " {} " + self.passage_prefix + " {}"
             if self.n_context is not None:
                 contexts = example['ctxs'][:self.n_context]
@@ -61,7 +63,7 @@ class Dataset(torch.utils.data.Dataset):
             if len(contexts) == 0:
                 contexts = [question]
         else:
-            passages, scores = None, None
+            passages, scores, tags = None, None, None
 
         return {
             'index' : index,
