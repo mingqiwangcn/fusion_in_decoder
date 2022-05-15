@@ -25,7 +25,7 @@ class OndiskIndexer:
                 passage_dict[int(p_id)] = item 
         return passage_dict
     
-    def search(self, query, top_n=100, n_probe=16, min_tables=5, max_retr=1000):
+    def search(self, query, top_n=100, n_probe=32, min_tables=5, max_retr=1000):
         result = []
         N = len(query)
         for idx in range(0, N):
@@ -33,17 +33,13 @@ class OndiskIndexer:
             batch_query = query[idx:pos]
             satified=False
             num_retr = top_n
-            step = 100
-            step_mlp = 1
             while (not satified):
                 item_passage_lst = self.one_query_search(batch_query, top_n=num_retr, n_probe=n_probe)
                 table_lst = [a['tag']['table_id'] for a in item_passage_lst]
                 table_set = set(table_lst)
                 if len(table_set) < min_tables:
-                    num_retr = top_n + step * step_mlp
-                    step_mlp *= 2
-                    if num_retr > max_retr:
-                        satified = True
+                    num_retr = max_retr
+                    satified = True
                 else:
                     satified = True 
 
