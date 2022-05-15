@@ -98,6 +98,7 @@ def read_passages(data_file):
     return passages
 
 if __name__ == '__main__':
+    t1 = time.time()
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--index_file', type=str)
@@ -128,3 +129,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     src.slurm.init_distributed_mode(args)
     main(args)
+    t2 = time.time()
+    print('%d seconds' % (t2 - t1))
+
+
