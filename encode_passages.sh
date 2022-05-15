@@ -15,4 +15,4 @@ python generate_passage_embeddings.py \
         --output_path ${out_file_name} \
         --shard_id 0 \
         --num_shards 1 \
-        --per_gpu_batch_size 1000 \
+        --per_gpu_batch_size 3000 \
