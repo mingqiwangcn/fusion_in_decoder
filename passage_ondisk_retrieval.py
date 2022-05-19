@@ -45,7 +45,8 @@ def retrieve_data(opt, index, data, model, tokenizer, f_o):
                 extract_cls=model.config.extract_cls,
             )
             query_emb = out_emb.cpu().numpy()
-            result_lst = index.search(query_emb, top_n=opt.n_docs, n_probe=128)
+            result_lst = index.search(query_emb, top_n=opt.n_docs, n_probe=128, 
+                                      min_tables=opt.min_tables, max_retr=opt.max_retr)
             assert(1 == len(result_lst))
             item_result = result_lst[0]
             data_item = data[idxes[0]]
@@ -98,7 +99,6 @@ def read_passages(data_file):
     return passages
 
 if __name__ == '__main__':
-    t1 = time.time()
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--index_file', type=str)
@@ -124,12 +124,11 @@ if __name__ == '__main__':
                         help='Number of subquantizer used for vector quantization, if 0 flat index is used')
     parser.add_argument("--n-bits", type=int, default=8, 
                         help='Number of bits per subquantizer')
-
+    parser.add_argument('--min_tables', type=int, default=10, help='number of tables at least to retrieve')
+    parser.add_argument('--max_retr', type=int, default=10000, help='maximum number of vectors to retrieve')
 
     args = parser.parse_args()
     src.slurm.init_distributed_mode(args)
     main(args)
-    t2 = time.time()
-    print('%d seconds' % (t2 - t1))
 
 

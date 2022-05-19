@@ -25,7 +25,7 @@ class OndiskIndexer:
                 passage_dict[int(p_id)] = item 
         return passage_dict
     
-    def search(self, query, top_n=100, n_probe=128, min_tables=5, max_retr=1000):
+    def search(self, query, top_n=100, n_probe=128, min_tables=10, max_retr=10000):
         result = []
         N = len(query)
         for idx in range(0, N):
@@ -46,7 +46,7 @@ class OndiskIndexer:
             result.append(item_passage_lst)
         return result
          
-    def one_query_search(self, query, top_n=10, n_probe=16):
+    def one_query_search(self, query, top_n=100, n_probe=128):
         assert(len(query) == 1)
         self.index.nprobe = n_probe
         batch_dists, batch_p_ids = self.index.search(query, top_n)
