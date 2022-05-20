@@ -37,9 +37,8 @@ class OndiskIndexer:
                 item_passage_lst = self.one_query_search(batch_query, top_n=num_retr, n_probe=n_probe)
                 table_lst = [a['tag']['table_id'] for a in item_passage_lst]
                 table_set = set(table_lst)
-                if len(table_set) < min_tables:
+                if (num_retr < max_retr) and  (len(table_set) < min_tables) :
                     num_retr = max_retr
-                    satified = True
                 else:
                     satified = True 
 

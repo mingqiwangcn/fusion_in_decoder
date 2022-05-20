@@ -10,8 +10,8 @@ chk_name=train_syt_${dataset}_${exprt}_${sql_expr}_tagged
 python ./finetune_table_retr.py \
     --do_train \
     --model_path ./pretrained_models/tqa_reader_base \
-    --train_data ${exprt_dir}/fusion_retrieved_train.jsonl \
-    --eval_data ${exprt_dir}/fusion_retrieved_dev.jsonl \
+    --train_data ${exprt_dir}/fusion_retrieved_train_tagged.jsonl \
+    --eval_data ${exprt_dir}/fusion_retrieved_dev_tagged.jsonl \
     --n_context 100 \
     --per_gpu_batch_size 1 \
     --cuda 0 \

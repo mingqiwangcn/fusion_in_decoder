@@ -18,4 +18,4 @@ python ./passage_ondisk_retrieval.py \
     --output_path ${out_dir}/fusion_retrieved.jsonl \
     --n-docs 100 \
     --min_tables 10 \
-    --max_retr 20000
+    --max_retr 10000
