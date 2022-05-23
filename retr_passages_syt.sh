@@ -16,6 +16,6 @@ python ./passage_ondisk_retrieval.py \
     --passage_file ./data/on_disk_index_${dataset}_${expr}/${file_name} \
     --data ${sql_data_dir}/fusion_query.jsonl \
     --output_path ${out_dir}/fusion_retrieved.jsonl \
-    --n-docs 1000 \
+    --n-docs 100 \
     --min_tables 5 \
     --max_retr 1000

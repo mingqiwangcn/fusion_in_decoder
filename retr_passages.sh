@@ -18,6 +18,6 @@ python ./passage_ondisk_retrieval.py \
     --passage_file ${passage_file} \
     --data ${query_file} \
     --output_path ${out_retr_file} \
-    --n-docs 1000 \
+    --n-docs 100 \
     --min_tables 5 \
     --max_retr 1000
