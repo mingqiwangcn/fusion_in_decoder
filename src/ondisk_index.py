@@ -33,6 +33,7 @@ class OndiskIndexer:
             batch_query = query[idx:pos]
             satified=False
             num_retr = top_n
+            item_passage_lst = []
             while (not satified):
                 item_passage_lst = self.one_query_search(batch_query, top_n=num_retr, n_probe=n_probe)
                 table_lst = [a['tag']['table_id'] for a in item_passage_lst]
