@@ -161,7 +161,7 @@ def train(model, retr_model,
     
     global global_steps
     global_steps = 0
-    max_epoc = 3
+    max_epoc = 5
     total_time = .0
     for epoc in range(max_epoc):
         metric_rec = MetricRecorder([1, 3, 5])
