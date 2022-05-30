@@ -21,9 +21,6 @@ import os
 import json
 from src.retr_model import FusionRetrModel 
 from src.retr_loss import FusionRetrLoss
-
-from src.general_retr_loss import FusionGeneralRetrLoss
-
 import logging
 import torch.optim as optim
 import time
@@ -37,13 +34,8 @@ def get_device(cuda):
     return device
 
 def get_loss_fn(opt):
-    if (opt.retr_model_type is None) or (opt.retr_model_type == ''):
-        loss_fn = FusionRetrLoss()
-        logger.info('loss function, FusionRetrLoss')
-    else: 
-        loss_fn = FusionGeneralRetrLoss()
-        logger.info('loss function, FusionGeneralRetrLoss')
-
+    loss_fn = FusionRetrLoss()
+    logger.info('loss function, FusionRetrLoss')
     return loss_fn
 
 def get_retr_model(opt):
@@ -161,9 +153,8 @@ def train(model, retr_model,
     
     global global_steps
     global_steps = 0
-    max_epoc = 5
     total_time = .0
-    for epoc in range(max_epoc):
+    for epoc in range(opt.max_epoch):
         metric_rec = MetricRecorder([1, 3, 5])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
@@ -181,11 +172,7 @@ def train(model, retr_model,
 
         model.overwrite_forward_crossattention()
         model.reset_score_storage() 
-
         assert(Num_Answers == 1) 
-
-        table_pred_results = {1:[], 5:[]}
-        count = 0
         num_batch = len(train_dataloader)
         for itr, fusion_batch in tqdm(enumerate(train_dataloader), total=num_batch):
             t1 = time.time()
@@ -281,14 +268,6 @@ def get_score_info(model, batch_data, dataset):
     context_mask = context_mask.to(crossattention_scores.device)
     return crossattention_scores, score_states, batch_examples, context_mask
     
-
-def show_precision(count, table_pred_results):
-    str_info = 'count = %d' % count
-    for threshold in table_pred_results:
-        precision = np.mean(table_pred_results[threshold]) * 100
-        str_info += 'p@%d = %.2f ' % (threshold, precision)
-    logger.info(str_info)
-
 def set_logger(opt):
     global logger
     logger = logging.getLogger(__name__)
@@ -304,9 +283,9 @@ def set_logger(opt):
     logger.addHandler(file_hander)
 
 def print_args(opts):
-    str_info = 'train_data=%s \n eval_data=%s \n n_context=%d \n checkpoint_dir=%s \n name=%s \n retr_model_type=%s' % (
+    str_info = 'train_data=%s \n eval_data=%s \n n_context=%d \n checkpoint_dir=%s \n name=%s' % (
                 opts.train_data, opts.eval_data, opts.n_context, 
-                opts.checkpoint_dir, opts.name, opts.retr_model_type)
+                opts.checkpoint_dir, opts.name)
     logger.info(str_info)  
 
 def main():

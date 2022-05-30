@@ -13,11 +13,11 @@ python ./finetune_table_retr.py \
     --train_data ${exprt_dir}/fusion_retrieved_train_tagged.jsonl \
     --eval_data ${exprt_dir}/fusion_retrieved_dev_tagged.jsonl \
     --n_context 100 \
-    --per_gpu_batch_size 1 \
+    --per_gpu_batch_size 4 \
     --cuda 0 \
     --name ${chk_name} \
     --checkpoint_dir output \
-    --checkpoint_steps 1000 \
-    --retr_model_type general \
+    --checkpoint_steps 500 \
+    --max_epoch 20 \
     --eval_in_train 1 \
 
