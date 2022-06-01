@@ -20,7 +20,7 @@ from tqdm import tqdm
 import os
 import json
 from src.retr_model import FusionRetrModel 
-from src.retr_loss import FusionRetrLoss
+from src.general_retr_loss import FusionGeneralRetrLoss
 import logging
 import torch.optim as optim
 import time
@@ -34,8 +34,8 @@ def get_device(cuda):
     return device
 
 def get_loss_fn(opt):
-    loss_fn = FusionRetrLoss()
-    logger.info('loss function, FusionRetrLoss')
+    loss_fn = FusionGeneralRetrLoss()
+    logger.info('loss function, FusionGeneralRetrLoss')
     return loss_fn
 
 def get_retr_model(opt):
