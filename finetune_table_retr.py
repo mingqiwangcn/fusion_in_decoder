@@ -41,6 +41,7 @@ def get_loss_fn(opt):
 def get_retr_model(opt):
     retr_model = FusionRetrModel()
     if opt.fusion_retr_model is not None:
+        logger.info('loading pretrained model (%s)' % opt.fusion_retr_model)
         state_dict = torch.load(opt.fusion_retr_model, map_location=opt.device)
         retr_model.load_state_dict(state_dict)
 
