@@ -15,8 +15,8 @@ python ./passage_ondisk_retrieval.py \
     --model_path ./pretrained_models/tqa_retriever \
     --index_file ./data/on_disk_index_${dataset}_${expr}/populated.index \
     --passage_file ./data/on_disk_index_${dataset}_${expr}/${file_name} \
-    --data ${sql_data_dir}/fusion_query_${part}.jsonl \
-    --output_path ${out_dir}/fusion_retrieved_${part}.jsonl \
-    --n-docs 200 \
+    --data ${sql_data_dir}/fusion_query.jsonl_${part} \
+    --output_path ${out_dir}/fusion_retrieved.jsonl_${part} \
+    --n-docs 100 \
     --min_tables 10 \
-    --max_retr 5000
+    --max_retr 10000
