@@ -47,18 +47,21 @@ def get_retr_model(opt):
     retr_model = retr_model.to(opt.device) 
     return retr_model
 
-def write_predictions(f_o_pred, item, top_idxes):
+def write_predictions(f_o_pred, item, top_idxes, scores):
     qid = item['qid']
     table_id_lst = item['table_id_lst']
     question = item['question']
     passages = item['passages']
+    p_id_lst = item['p_id_lst']
     tags = item['tags']
     out_item = {
         'qid':qid,
         'table_id_lst':table_id_lst,
         'question':question,
         'passages':[passages[a] for a in top_idxes],
-        'tags':[tags[a] for a in top_idxes]
+        'p_id_lst':[p_id_lst[a] for a in top_idxes],
+        'tags':[tags[a] for a in top_idxes],
+        'scores':[float(scores[a]) for a in top_idxes]
     }
     f_o_pred.write(json.dumps(out_item) + '\n')
 
@@ -84,7 +87,7 @@ def log_metrics(epoc, metric_rec,
         answer_num_lst.append(len(sorted_idxes))
         
         if f_o_pred is not None:
-            write_predictions(f_o_pred, batch_data[b_idx], sorted_idxes)
+            write_predictions(f_o_pred, batch_data[b_idx], sorted_idxes, scores)
 
     metric_dict = metric_rec.get_mean()
     str_info = ('epoc=%d ' % epoc) if epoc is not None else ''
