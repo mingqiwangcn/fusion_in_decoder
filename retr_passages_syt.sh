@@ -17,5 +17,5 @@ python ./passage_ondisk_retrieval.py \
     --data ${sql_data_dir}/fusion_query.jsonl \
     --output_path ${out_dir}/fusion_retrieved.jsonl \
     --n-docs 100 \
-    --min_tables 5 \
-    --max_retr 1000
+    --min_tables 10 \
+    --max_retr 10000
