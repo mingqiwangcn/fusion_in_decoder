@@ -57,12 +57,13 @@ def embed_passages(opt, passages, model, tokenizer):
     allids = [x for idlist in allids for x in idlist]
     return allids, allembeddings
 
-def main(opt):
-    logger = src.util.init_logger(is_main=True)
+def main(opt, is_main):
+    src.slurm.init_distributed_mode(opt)
+    logger = src.util.init_logger(is_main=is_main)
     output_path = Path(args.output_path)
     save_file = output_path.parent / (output_path.name + f'_{args.shard_id:02d}')
     if os.path.exists(save_file):
-        logger.info('[%s] already exists' % save_file)
+        logger.info('(%s) already exists' % save_file)
         return
 
     tokenizer = transformers.BertTokenizerFast.from_pretrained('bert-base-uncased')
@@ -97,8 +98,6 @@ def main(opt):
 
 
 if __name__ == '__main__':
-    import time
-    t1 = time.time()
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--passages', type=str, default=None, help='Path to passages (.jsonl file)')
@@ -111,11 +110,6 @@ if __name__ == '__main__':
     parser.add_argument('--no_fp16', action='store_true', help="inference in fp32")
     args = parser.parse_args()
 
-    src.slurm.init_distributed_mode(args)
-
-    main(args)
-    t2 = time.time()
-
-    print('%d seconds' % (t2 - t1))
+    main(args,  is_main=True)
 
 
