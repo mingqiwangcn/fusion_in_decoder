@@ -59,11 +59,17 @@ def embed_passages(opt, passages, model, tokenizer):
 
 def main(opt, is_main):
     src.slurm.init_distributed_mode(opt)
+    args = opt
     logger = src.util.init_logger(is_main=is_main)
     output_path = Path(args.output_path)
     save_file = output_path.parent / (output_path.name + f'_{args.shard_id:02d}')
     if os.path.exists(save_file):
-        logger.info('(%s) already exists' % save_file)
+        msg_txt = '(%s) already exists' % save_file
+        logger.info(msg_txt)
+        msg_info = {
+            'state':False,
+            'msg':msg_txt
+        }
         return
 
     tokenizer = transformers.BertTokenizerFast.from_pretrained('bert-base-uncased')
@@ -96,6 +102,11 @@ def main(opt, is_main):
 
     logger.info(f'Total passages processed {len(allids)}. Written to {save_file}.')
 
+    msg_info = {
+        'state':True,
+        'out_file':str(save_file)
+    }
+    return msg_info
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
