@@ -108,9 +108,9 @@ def index_data(index_file, data_file, index_out_dir, block_size=5000000):
 def get_index_options(num_vecs):
     unit = 1e6 
     if num_vecs < unit:
-        num_clusters = int(16 * math.sqrt(num_vecs))
+        num_clusters = int(num_vecs / 50)
         num_clusters = min(num_clusters, num_vecs)
-        num_train = 60 * num_clusters
+        num_train = 50 * num_clusters
         num_train = min(num_train, num_vecs)
         factory_string = 'IVF%s,Flat' % num_clusters
     else:
