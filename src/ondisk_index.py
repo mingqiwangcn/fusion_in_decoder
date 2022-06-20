@@ -204,7 +204,7 @@ def create_train(data_file, index_file):
     faiss.write_index(index, index_file) 
 
 def main(args):
-    data_dir = os.path.join(args.work_dir, 'fusion_in_decoder/data')
+    data_dir = os.path.join(args.work_dir, 'data', args.dataset, 'index')
     if not os.path.isdir(data_dir):
         os.makedirs(data_dir)
 
@@ -226,7 +226,8 @@ def main(args):
     index_data(trained_index_file, data_file, index_out_dir)
     
     msg_info = {
-        'state':True
+        'state':True,
+        'index_dir':index_out_dir
     }
     return msg_info
 
