@@ -106,10 +106,18 @@ def index_data(index_file, data_file, index_out_dir, block_size=5000000):
         os.remove(block_file_name)
 
 def get_index_options(num_vecs):
-    num_clusters = 4096
-    factory_string = 'IVF%s,Flat' % num_clusters
-    num_train = num_clusters * 1024
-    num_train = min(num_train, num_vecs)
+    unit = 1e6 
+    if num_vecs < unit:
+        num_clusters = int(16 * math.sqrt(num_vecs))
+        num_clusters = min(num_clusters, num_vecs)
+        num_train = 60 * num_clusters
+        num_train = min(num_train, num_vecs)
+        factory_string = 'IVF%s,Flat' % num_clusters
+    else:
+        num_clusters = 4096
+        factory_string = 'IVF%s,Flat' % num_clusters
+        num_train = num_clusters * 1024
+        num_train = min(num_train, num_vecs)
     return (factory_string, num_train)
     
     '''
@@ -167,15 +175,18 @@ def create_train(data_file, index_file):
     factory_string, num_train = get_index_options(num_vecs)
     print('factory_string=%s, num_train=%d' % (factory_string, num_train))     
 
-    num_train_per_file = num_train // len(emb_file_lst)
-    
     train_emb_lst = []
     for emb_file in emb_file_lst:
         with open(emb_file, 'rb') as f:
             _, p_embs = pickle.load(f)
         N = p_embs.shape[0]
         rows = list(np.arange(0, N))
-        train_rows = random.sample(rows, num_train_per_file)
+
+        num_train_in_file = int(num_train * (N / num_vecs))
+        num_sample_train = min(len(rows), num_train_in_file)
+        
+        print('num_sample_train=', num_sample_train)
+        train_rows = random.sample(rows, num_sample_train)
         train_emb = p_embs[train_rows] 
         train_emb_lst.append(train_emb)
 
@@ -192,37 +203,45 @@ def create_train(data_file, index_file):
     print('wrting trained index to [%s]' % index_file)
     faiss.write_index(index, index_file) 
 
-def main():
-    args = get_args()
-    if not os.path.isdir('data'):
-        os.mkdir('data')
+def main(args):
+    data_dir = os.path.join(args.work_dir, 'fusion_in_decoder/data')
+    if not os.path.isdir(data_dir):
+        os.makedirs(data_dir)
 
-    index_out_dir = os.path.join('data', 'on_disk_index_%s_%s' % (args.dataset, args.experiment))
+    index_out_dir = os.path.join(data_dir, 'on_disk_index_%s_%s' % (args.dataset, args.experiment))
     if os.path.exists(index_out_dir):
-        raise ValueError('Index directory [%s] already exists' % index_out_dir)
-    
+        msg_text = 'Index directory (%s) already exists' % index_out_dir
+        msg_info = {
+            'state':False,
+            'msg':msg_text
+        }
+        return msg_info
+         
     os.mkdir(index_out_dir)
-    dataset_dir = '/home/cc/code/open_table_discovery/table2txt/dataset/'
+    dataset_dir = os.path.join(args.work_dir, 'open_table_discovery/table2txt/dataset/')
     exptr_dir = os.path.join(dataset_dir, args.dataset, args.experiment)
     data_file = os.path.join(exptr_dir, args.emb_file)
     trained_index_file = os.path.join(index_out_dir, 'trained.index')
     create_train(data_file, trained_index_file)
     index_data(trained_index_file, data_file, index_out_dir)
+    
+    msg_info = {
+        'state':True
+    }
+    return msg_info
 
 def get_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--work_dir', type=str)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--experiment', type=str)
     parser.add_argument('--emb_file', type=str)
     args = parser.parse_args()
     return args
 
-
 if __name__ == '__main__':
-    try:
-        main()
-    except ValueError as e:
-        print(e)
+    args = get_args()
+    msg_info = main(args)
+    if not mag_info['state']:
+        print(msg_info['msg']) 
     
-    
-     
