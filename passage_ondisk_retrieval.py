@@ -65,6 +65,8 @@ def retrieve_data(opt, index, data, model, tokenizer, f_o):
     #logger.info(f'Questions embeddings shape: {embedding.size()}')
 
 def main(opt):
+    src.slurm.init_distributed_mode(opt)
+    args = opt
     if os.path.exists(args.output_path):
         print('[%s] already exists' % args.output_path)
         return
@@ -78,7 +80,7 @@ def main(opt):
     model.cuda()
     model.eval()
     #if not opt.no_fp16:
-        #model = model.half()
+    #    model = model.half()
 
     index = OndiskIndexer(args.index_file, args.passage_file)
 
@@ -100,35 +102,19 @@ def read_passages(data_file):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-
     parser.add_argument('--index_file', type=str)
     parser.add_argument('--passage_file', type=str)
-
     parser.add_argument('--data', required=True, type=str, default=None, 
                         help=".json file containing question and answers, similar format to reader data")
-    parser.add_argument('--passages', type=str, default=None, help='Path to passages (.tsv file)')
-    parser.add_argument('--passages_embeddings', type=str, default=None, help='Glob path to encoded passages')
     parser.add_argument('--output_path', type=str, default=None, help='Results are written to output_path')
     parser.add_argument('--n-docs', type=int, default=100, help="Number of documents to retrieve per questions")
-    parser.add_argument('--validation_workers', type=int, default=32,
-                        help="Number of parallel processes to validate results")
-    parser.add_argument('--per_gpu_batch_size', type=int, default=64, help="Batch size for question encoding")
-    parser.add_argument("--save_or_load_index", action='store_true', 
-                        help='If enabled, save index and load index if it exists')
     parser.add_argument('--model_path', type=str, help="path to directory containing model weights and config file")
     parser.add_argument('--no_fp16', action='store_true', help="inference in fp32")
-    parser.add_argument('--passage_maxlength', type=int, default=200, help="Maximum number of tokens in a passage")
-    parser.add_argument('--question_maxlength', type=int, default=40, help="Maximum number of tokens in a question")
-    parser.add_argument('--indexing_batch_size', type=int, default=50000, help="Batch size of the number of passages indexed")
-    parser.add_argument("--n-subquantizers", type=int, default=0, 
-                        help='Number of subquantizer used for vector quantization, if 0 flat index is used')
-    parser.add_argument("--n-bits", type=int, default=8, 
-                        help='Number of bits per subquantizer')
+    parser.add_argument('--question_maxlength', type=int, default=50, help="Maximum number of tokens in a question")
     parser.add_argument('--min_tables', type=int, default=10, help='number of tables at least to retrieve')
     parser.add_argument('--max_retr', type=int, default=10000, help='maximum number of vectors to retrieve')
 
     args = parser.parse_args()
-    src.slurm.init_distributed_mode(args)
     main(args)
 
 
