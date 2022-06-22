@@ -184,9 +184,6 @@ def train(model, retr_model,
         for itr, fusion_batch in tqdm(enumerate(train_dataloader), total=num_batch):
             t1 = time.time()
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, train_dataset)
-            if itr == 0:
-                batch_qid_lst = [a['id'] for a in examples]
-                print(batch_qid_lst)
             batch_data = get_batch_data(examples)
             opts = {}
             retr_scores = retr_model(batch_data, scores, score_states, context_mask, opts=opts) 
