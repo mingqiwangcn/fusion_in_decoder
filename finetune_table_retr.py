@@ -158,30 +158,35 @@ def train(model, retr_model,
     global global_steps
     global_steps = 0
     total_time = .0
+        
+    train_sampler = RandomSampler(train_dataset)
+    train_dataloader = DataLoader(
+        train_dataset,
+        sampler=train_sampler,
+        batch_size=opt.per_gpu_batch_size,
+        drop_last=False,
+        #num_workers=10,
+        collate_fn=collator
+    )
+    model.eval()
+    if hasattr(model, "module"):
+        model = model.module
+
+    model.overwrite_forward_crossattention()
+    model.reset_score_storage() 
+    assert(Num_Answers == 1) 
+    num_batch = len(train_dataloader)
+    
+    checkpoint_steps = num_batch // 2
+
     for epoc in range(opt.max_epoch):
         metric_rec = MetricRecorder([1, 3, 5])
-        train_sampler = RandomSampler(train_dataset)
-        train_dataloader = DataLoader(
-            train_dataset,
-            sampler=train_sampler,
-            batch_size=opt.per_gpu_batch_size,
-            drop_last=True,
-            #num_workers=10,
-            collate_fn=collator
-        )
-
-        model.eval()
-        if hasattr(model, "module"):
-            model = model.module
-
-        model.overwrite_forward_crossattention()
-        model.reset_score_storage() 
-        assert(Num_Answers == 1) 
-        num_batch = len(train_dataloader)
         for itr, fusion_batch in tqdm(enumerate(train_dataloader), total=num_batch):
             t1 = time.time()
-
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, train_dataset)
+            if itr == 0:
+                batch_qid_lst = [a['id'] for a in examples]
+                print(batch_qid_lst)
             batch_data = get_batch_data(examples)
             opts = {}
             retr_scores = retr_model(batch_data, scores, score_states, context_mask, opts=opts) 
@@ -202,7 +207,7 @@ def train(model, retr_model,
             log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
                         (itr + 1), num_batch, loss.item()) 
             
-            if global_steps % opt.checkpoint_steps == 0:
+            if global_steps % checkpoint_steps == 0:
                 model_tag = 'step_%d' % global_steps
                 out_dir = os.path.join(opt.checkpoint_dir, opt.name)
                 save_model(out_dir, retr_model, epoc, tag=model_tag) 
@@ -292,11 +297,7 @@ def print_args(opts):
                 opts.checkpoint_dir, opts.name)
     logger.info(str_info)  
 
-def main():
-    options = Options()
-    options.add_reader_options()
-    options.add_eval_options()
-    opt = options.parse()
+def main(opt):
     src.slurm.init_distributed_mode(opt)
     src.slurm.init_signal_handler()
     
@@ -306,8 +307,13 @@ def main():
     dir_path = Path(opt.checkpoint_dir)/opt.name
     directory_exists = dir_path.exists()
     if directory_exists:
-        print('[%s] already exists.' % str(dir_path))
-        return
+        err_msg = '(%s) already exists.' % str(dir_path)
+        msg_info = {
+            'state':False,
+            'msg':err_msg
+        }
+        return msg_info
+
     if opt.is_distributed:
         torch.distributed.barrier()
     dir_path.mkdir(parents=True, exist_ok=True)
@@ -378,4 +384,12 @@ def main():
     #logger.info(f'EM {100*exactmatch:.2f}, Total number of example {total}')
 
 if __name__ == "__main__":
-    main()
+    options = Options()
+    options.add_reader_options()
+    options.add_eval_options()
+    args = options.parse()
+    msg_info = main(args)
+    if not msg_info['state']:
+        print(msg_info['msg'])
+
+
