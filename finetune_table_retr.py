@@ -3,7 +3,7 @@
 # 
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
-
+import copy
 import torch
 import transformers
 import numpy as np
@@ -21,13 +21,14 @@ import os
 import json
 from src.retr_model import FusionRetrModel 
 from src.general_retr_loss import FusionGeneralRetrLoss
-import logging
 import torch.optim as optim
 import time
 from src.retr_utils import MetricRecorder, get_top_metrics
+import logging
 
 Num_Answers = 1
 global_steps = 0
+best_metric_info = {}
 
 def get_device(cuda):
     device = torch.device(("cuda:%d" % cuda) if torch.cuda.is_available() and cuda >=0 else "cpu")
@@ -121,7 +122,7 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model
         out_pred_file = os.path.join(out_dir, 'pred_%s.jsonl' % model_tag)
         f_o_pred = open(out_pred_file, 'w')
    
-    metric_rec = MetricRecorder([1, 3, 5]) 
+    metric_rec = MetricRecorder([1, 5]) 
     total_time = .0 
     model.overwrite_forward_crossattention()
     model.reset_score_storage()
@@ -141,10 +142,42 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model
            
             log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
                         (itr + 1), num_batch, loss=None, model_tag=model_tag, f_o_pred=f_o_pred) 
-    
+   
     if f_o_pred is not None:
         f_o_pred.close() 
-            
+    
+    update_best_metric(metric_rec, model_tag, out_dir)
+        
+def update_best_metric(metric_rec, model_tag, out_dir):
+    metric_dict = metric_rec.metric_dict 
+    if 'p@1' not in best_metric_info:
+        best_metric_info['N'] = metric_rec.N
+        best_metric_info['p@1'] = metric_dict[1]['metric_sum'] # metric_sum is integer and can use =
+        best_metric_info['p@5'] = metric_dict[5]['metric_sum']
+        best_metric_info['model_tag'] = model_tag
+        best_metric_info['patience_steps'] = 0
+    else:
+        best_metric_info['patience_steps'] += 1
+        cur_best_p_at_1 = best_metric_info['p@1']
+        cur_best_p_at_5 = best_metric_info['p@5']
+        if metric_dict[1]['metric_sum'] > cur_best_p_at_1:
+            best_metric_info['p@1'] = metric_dict[1]['metric_sum']
+            best_metric_info['p@5'] = metric_dict[5]['metric_sum']
+            best_metric_info['model_tag'] = model_tag
+            best_metric_info['patience_steps'] = 0
+        elif metric_dict[1]['metric_sum'] == cur_best_p_at_1:
+            if metric_dict[5]['metric_sum'] > cur_best_p_at_5:
+                best_metric_info['p@5'] = metric_dict[5]['metric_sum'] 
+                best_metric_info['model_tag'] = model_tag
+                best_metric_info['patience_steps'] = 0
+    
+    best_metric_file = os.path.join(out_dir, 'best_metric_info.json') 
+    with open(best_metric_file, 'w') as f_o:
+        f_o.write(json.dumps(best_metric_info))
+
+def should_stop_train():
+    return best_metric_info['patience_steps'] >= 10    
+ 
 def train(model, retr_model, 
           train_dataset, collator,
           eval_dataset, eval_dataloader, 
@@ -208,12 +241,27 @@ def train(model, retr_model,
                 model_tag = 'step_%d' % global_steps
                 out_dir = os.path.join(opt.checkpoint_dir, opt.name)
                 save_model(out_dir, retr_model, epoc, tag=model_tag) 
-                if opt.eval_in_train: 
-                    show_tag = 'step=%d' % global_steps
-                    evaluate(epoc, model, retr_model,
-                             eval_dataset, eval_dataloader,
-                             tokenizer, opt, model_tag=show_tag, out_dir=out_dir)
-                    retr_model.train() 
+                
+                evaluate(epoc, model, retr_model,
+                         eval_dataset, eval_dataloader,
+                         tokenizer, opt, model_tag=model_tag, out_dir=out_dir)
+                retr_model.train()
+                
+                if should_stop_train():
+                    break
+        
+        if should_stop_train():
+            break
+    
+    print(get_best_metric())
+
+def get_best_metric():
+    best_metric = copy.deepcopy(best_metric_info)
+    N = best_metric['N']
+    best_metric['p@1'] = best_metric['p@1'] / N
+    best_metric['p@5'] = best_metric['p@5'] / N 
+    del best_metric['N'] 
+    return best_metric
 
 def get_batch_answers(batch_data):
     batch_answers = []
