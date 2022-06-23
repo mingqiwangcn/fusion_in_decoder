@@ -107,20 +107,24 @@ def log_metrics(epoc, metric_rec,
     
     if loss is not None:
         str_info += ' global_steps=%d' % global_steps
-    logger.info(str_info)
+    #logger.info(str_info)
 
     return batch_sorted_idxes
 
 
-def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model_tag=None, out_dir=None):
-    logger.info('Start evaluation')
+def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, 
+             model_tag=None, out_dir=None, model_file=None):
+    #logger.info('Start evaluation')
     model.eval()
     retr_model.eval()
   
     f_o_pred = None
+    f_o_metric = None
     if out_dir is not None:
         out_pred_file = os.path.join(out_dir, 'pred_%s.jsonl' % model_tag)
         f_o_pred = open(out_pred_file, 'w')
+        out_metric_file = os.path.join(out_dir, 'metric_%s.jsonl' % model_tag)
+        f_o_metric = open(out_metric_file, 'w')
    
     metric_rec = MetricRecorder([1, 5]) 
     total_time = .0 
@@ -128,7 +132,8 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model
     model.reset_score_storage()
     with torch.no_grad():
         num_batch = len(dataloader)
-        for itr, fusion_batch in tqdm(enumerate(dataloader), total=num_batch):
+        bar_desc = 'sql %d epoch %d evaluation' % (opt.sql_batch_no, epoc)
+        for itr, fusion_batch in tqdm(enumerate(dataloader), total=num_batch, desc=bar_desc):
             t1 = time.time()
 
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, dataset)
@@ -143,18 +148,25 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, model
             log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
                         (itr + 1), num_batch, loss=None, model_tag=model_tag, f_o_pred=f_o_pred) 
    
+    metric_dict = metric_rec.get_mean()
+    eval_metric_info = {}
+    for max_top in metric_dict:
+        eval_metric_info['p@%d' % max_top] =  metric_dict[max_top]['metric_mean']
+    f_o_metric.write(json.dumps(eval_metric_info))
+
     if f_o_pred is not None:
-        f_o_pred.close() 
+        f_o_pred.close()
+        f_o_metric.close() 
     
-    update_best_metric(metric_rec, model_tag, out_dir)
+    update_best_metric(metric_rec, model_tag, out_dir, model_file)
         
-def update_best_metric(metric_rec, model_tag, out_dir):
+def update_best_metric(metric_rec, model_tag, out_dir, model_file):
     metric_dict = metric_rec.metric_dict 
     if 'p@1' not in best_metric_info:
         best_metric_info['N'] = metric_rec.N
         best_metric_info['p@1'] = metric_dict[1]['metric_sum'] # metric_sum is integer and can use =
         best_metric_info['p@5'] = metric_dict[5]['metric_sum']
-        best_metric_info['model_tag'] = model_tag
+        best_metric_info['model_file'] = model_file
         best_metric_info['patience_steps'] = 0
     else:
         best_metric_info['patience_steps'] += 1
@@ -163,20 +175,20 @@ def update_best_metric(metric_rec, model_tag, out_dir):
         if metric_dict[1]['metric_sum'] > cur_best_p_at_1:
             best_metric_info['p@1'] = metric_dict[1]['metric_sum']
             best_metric_info['p@5'] = metric_dict[5]['metric_sum']
-            best_metric_info['model_tag'] = model_tag
+            best_metric_info['model_file'] = model_file
             best_metric_info['patience_steps'] = 0
         elif metric_dict[1]['metric_sum'] == cur_best_p_at_1:
             if metric_dict[5]['metric_sum'] > cur_best_p_at_5:
                 best_metric_info['p@5'] = metric_dict[5]['metric_sum'] 
-                best_metric_info['model_tag'] = model_tag
+                best_metric_info['model_file'] = model_file
                 best_metric_info['patience_steps'] = 0
     
     best_metric_file = os.path.join(out_dir, 'best_metric_info.json') 
     with open(best_metric_file, 'w') as f_o:
         f_o.write(json.dumps(best_metric_info))
 
-def should_stop_train():
-    return best_metric_info['patience_steps'] >= 10    
+def should_stop_train(opt):
+    return best_metric_info['patience_steps'] >= opt.patience_steps    
  
 def train(model, retr_model, 
           train_dataset, collator,
@@ -211,10 +223,12 @@ def train(model, retr_model,
     num_batch = len(train_dataloader)
     
     checkpoint_steps = num_batch // 2
-
-    for epoc in range(opt.max_epoch):
+    
+    epoc_bar_desc = 'sql %d epoch' % opt.sql_batch_no
+    for epoc in tqdm(range(opt.max_epoch), desc=epoc_bar_desc):
         metric_rec = MetricRecorder([1, 3, 5])
-        for itr, fusion_batch in tqdm(enumerate(train_dataloader), total=num_batch):
+        bar_desc = 'sql %d epoch %d train' % (opt.sql_batch_no, epoc)
+        for itr, fusion_batch in tqdm(enumerate(train_dataloader), total=num_batch, desc=bar_desc):
             t1 = time.time()
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, train_dataset)
             batch_data = get_batch_data(examples)
@@ -240,26 +254,35 @@ def train(model, retr_model,
             if global_steps % checkpoint_steps == 0:
                 model_tag = 'step_%d' % global_steps
                 out_dir = os.path.join(opt.checkpoint_dir, opt.name)
-                save_model(out_dir, retr_model, epoc, tag=model_tag) 
+                checkpoint_model_file = save_model(out_dir, retr_model, epoc, tag=model_tag) 
                 
                 evaluate(epoc, model, retr_model,
                          eval_dataset, eval_dataloader,
-                         tokenizer, opt, model_tag=model_tag, out_dir=out_dir)
+                         tokenizer, opt, model_tag=model_tag, out_dir=out_dir, 
+                         model_file=checkpoint_model_file)
                 retr_model.train()
                 
-                if should_stop_train():
+                if should_stop_train(opt):
                     break
         
-        if should_stop_train():
+        if should_stop_train(opt):
+            logger.info('Training is stopped becasue of the patience_steps setting')
             break
-    
-    print(get_best_metric())
+   
+    best_metric = get_best_metric() 
+    best_summary = 'Best performance, ' + str(get_best_metric())
+    logger.info(best_summary)
+
+    msg_info = {
+        'state':True,
+        'best_metric':best_metric
+    }
 
 def get_best_metric():
     best_metric = copy.deepcopy(best_metric_info)
     N = best_metric['N']
-    best_metric['p@1'] = best_metric['p@1'] / N
-    best_metric['p@5'] = best_metric['p@5'] / N 
+    best_metric['p@1'] = best_metric['p@1'] * 100 / N
+    best_metric['p@5'] = best_metric['p@5'] * 100 / N 
     del best_metric['N'] 
     return best_metric
 
@@ -274,6 +297,7 @@ def save_model(output_dir, model, epoc, tag='step'):
     file_name = 'epoc_%d_%s_model.pt' % (epoc, tag)
     out_path = os.path.join(output_dir, file_name)
     torch.save(model.state_dict(), out_path) 
+    return file_name
 
 def get_batch_data(fusion_examples):
     batch_data = []
@@ -367,11 +391,11 @@ def main(opt):
    
     print_args(opt)
     
-    if opt.write_results:
-        (dir_path / 'test_results').mkdir(parents=True, exist_ok=True)
+    #if opt.write_results:
+    #    (dir_path / 'test_results').mkdir(parents=True, exist_ok=True)
     
-    if not directory_exists and opt.is_main:
-        options.print_options(opt)
+    #if not directory_exists and opt.is_main:
+    #    options.print_options(opt)
 
     tokenizer = transformers.T5Tokenizer.from_pretrained('t5-base', return_dict=False)
 
@@ -426,7 +450,10 @@ def main(opt):
                 eval_dataset, eval_dataloader,
                 tokenizer, opt, out_dir=out_dir)
 
-    #logger.info(f'EM {100*exactmatch:.2f}, Total number of example {total}')
+    msg_info = {
+        'state':True
+    }
+    return msg_info
 
 if __name__ == "__main__":
     options = Options()

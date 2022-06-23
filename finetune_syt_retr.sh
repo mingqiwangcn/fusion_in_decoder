@@ -19,5 +19,4 @@ python ./finetune_table_retr.py \
     --name ${chk_name} \
     --checkpoint_dir output \
     --max_epoch 20 \
-    --eval_in_train 1 \
-
+    --patience_steps 6 \
