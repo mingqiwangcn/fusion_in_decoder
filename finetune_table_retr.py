@@ -273,10 +273,7 @@ def train(model, retr_model,
     best_summary = 'Best performance, ' + str(get_best_metric())
     logger.info(best_summary)
 
-    msg_info = {
-        'state':True,
-        'best_metric':best_metric
-    }
+    return copy.deepcopy(best_metric_info)
 
 def get_best_metric():
     best_metric = copy.deepcopy(best_metric_info)
@@ -439,21 +436,22 @@ def main(opt):
         )
         train_dataset = src.data.Dataset(train_examples, opt.n_context, sort_by_score=False)
         logger.info("Start train")
-        train(model, retr_model, 
-              train_dataset, collator_function,
-              eval_dataset, eval_dataloader, 
-              tokenizer, opt)
+        best_metric = train(model, retr_model, 
+                            train_dataset, collator_function,
+                            eval_dataset, eval_dataloader, 
+                            tokenizer, opt)
+
+        msg_info = {
+            'state':True,
+            'best_metric':best_metric
+        }
+        return msg_info
     else:
         logger.info("Start eval")
         out_dir = os.path.join(opt.checkpoint_dir, opt.name)
         evaluate(0, model, retr_model,
                 eval_dataset, eval_dataloader,
                 tokenizer, opt, out_dir=out_dir)
-
-    msg_info = {
-        'state':True
-    }
-    return msg_info
 
 if __name__ == "__main__":
     options = Options()
