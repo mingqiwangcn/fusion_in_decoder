@@ -30,6 +30,15 @@ Num_Answers = 1
 global_steps = 0
 best_metric_info = {}
 
+def init_global():
+    global Num_Answers
+    global global_steps
+    global best_metric_info
+
+    Num_Answers = 1
+    global_steps = 0
+    best_metric_info = {}
+
 def get_device(cuda):
     device = torch.device(("cuda:%d" % cuda) if torch.cuda.is_available() and cuda >=0 else "cpu")
     return device
@@ -254,7 +263,7 @@ def train(model, retr_model,
             if global_steps % checkpoint_steps == 0:
                 model_tag = 'step_%d' % global_steps
                 out_dir = os.path.join(opt.checkpoint_dir, opt.name)
-                checkpoint_model_file = save_model(out_dir, retr_model, epoc, tag=model_tag) 
+                checkpoint_model_file = save_model(out_dir, retr_model, epoc, tag=model_tag, opt=opt) 
                 
                 evaluate(epoc, model, retr_model,
                          eval_dataset, eval_dataloader,
@@ -266,13 +275,11 @@ def train(model, retr_model,
                     break
         
         if should_stop_train(opt):
-            logger.info('Training is stopped becasue of the patience_steps setting')
+            logger.info('Training is stopped because of the patience_steps setting')
             break
    
-    best_metric = get_best_metric() 
-    best_summary = 'Best performance, ' + str(get_best_metric())
-    logger.info(best_summary)
-
+    #best_metric = get_best_metric() 
+    #best_summary = 'Best performance, ' + str(get_best_metric())
     return copy.deepcopy(best_metric_info)
 
 def get_best_metric():
@@ -290,11 +297,11 @@ def get_batch_answers(batch_data):
         batch_answers.append(answers)
     return batch_answers
 
-def save_model(output_dir, model, epoc, tag='step'):
-    file_name = 'epoc_%d_%s_model.pt' % (epoc, tag)
+def save_model(output_dir, model, epoc, tag='step', opt=None):
+    file_name = 'sql_%d_epoc_%d_%s_model.pt' % (opt.sql_batch_no, epoc, tag)
     out_path = os.path.join(output_dir, file_name)
     torch.save(model.state_dict(), out_path) 
-    return file_name
+    return out_path
 
 def get_batch_data(fusion_examples):
     batch_data = []
@@ -346,10 +353,10 @@ def get_score_info(model, batch_data, dataset):
 def set_logger(opt):
     global logger
     logger = logging.getLogger(__name__)
+    logger.handlers = []
     logger.setLevel(logging.INFO)
 
     logger.propagate = False
-
     console = logging.StreamHandler()
     logger.addHandler(console)
 
@@ -364,6 +371,8 @@ def print_args(opts):
     logger.info(str_info)  
 
 def main(opt):
+    init_global()
+    
     src.slurm.init_distributed_mode(opt)
     src.slurm.init_signal_handler()
     
@@ -385,14 +394,7 @@ def main(opt):
     dir_path.mkdir(parents=True, exist_ok=True)
     global logger
     set_logger(opt)
-   
-    print_args(opt)
-    
-    #if opt.write_results:
-    #    (dir_path / 'test_results').mkdir(parents=True, exist_ok=True)
-    
-    #if not directory_exists and opt.is_main:
-    #    options.print_options(opt)
+    #print_args(opt)
 
     tokenizer = transformers.T5Tokenizer.from_pretrained('t5-base', return_dict=False)
 
