@@ -141,7 +141,10 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
     model.reset_score_storage()
     with torch.no_grad():
         num_batch = len(dataloader)
-        bar_desc = 'sql %d epoch %d evaluation' % (opt.sql_batch_no, epoc)
+        if opt.sql_batch_no is not None:
+            bar_desc = 'sql %d epoch %d evaluation' % (opt.sql_batch_no, epoc)
+        else:
+            bar_desc = 'epoch %d evaluation' % epoc
         for itr, fusion_batch in tqdm(enumerate(dataloader), total=num_batch, desc=bar_desc):
             t1 = time.time()
 
@@ -158,6 +161,12 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
                         (itr + 1), num_batch, loss=None, model_tag=model_tag, f_o_pred=f_o_pred) 
    
     metric_dict = metric_rec.get_mean()
+    if opt.sql_batch_no is None:
+        str_info = 'Accuracy, '
+        for max_top in metric_dict:
+            str_info += 'p@%d=%.2f ' % (max_top, metric_dict[max_top]['metric_mean'])
+        print(str_info)
+    
     eval_metric_info = {}
     for max_top in metric_dict:
         eval_metric_info['p@%d' % max_top] =  metric_dict[max_top]['metric_mean']
