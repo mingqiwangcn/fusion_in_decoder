@@ -162,7 +162,8 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
    
     metric_dict = metric_rec.get_mean()
     if opt.sql_batch_no is None:
-        str_info = 'Accuracy, '
+        str_info =  'Model, %s \n' % opt.fusion_retr_model
+        str_info += 'Accuracy, '
         for max_top in metric_dict:
             str_info += 'p@%d=%.2f ' % (max_top, metric_dict[max_top]['metric_mean'])
         print(str_info)
