@@ -204,7 +204,7 @@ def create_train(data_file, index_file):
     faiss.write_index(index, index_file) 
 
 def main(args):
-    data_dir = os.path.join(args.work_dir, 'data', args.dataset, 'index')
+    data_dir = os.path.join(args.work_dir, 'index')
     if not os.path.isdir(data_dir):
         os.makedirs(data_dir)
 
