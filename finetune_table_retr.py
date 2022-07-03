@@ -26,6 +26,8 @@ import time
 from src.retr_utils import MetricRecorder, get_top_metrics
 import logging
 
+logging.basicConfig(level=logging.ERROR)
+
 Num_Answers = 1
 global_steps = 0
 best_metric_info = {}
@@ -364,7 +366,7 @@ def set_logger(opt):
     global logger
     logger = logging.getLogger(__name__)
     logger.handlers = []
-    logger.setLevel(logging.INFO)
+    #logger.setLevel(logging.INFO)
 
     logger.propagate = False
     console = logging.StreamHandler()
@@ -464,6 +466,11 @@ def main(opt):
         evaluate(0, model, retr_model,
                 eval_dataset, eval_dataloader,
                 tokenizer, opt, out_dir=out_dir)
+        msg_info = {
+            'state':True,
+            'out_dir':out_dir
+        }
+        return msg_info
 
 if __name__ == "__main__":
     options = Options()
