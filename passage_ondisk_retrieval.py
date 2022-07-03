@@ -64,7 +64,7 @@ def retrieve_data(opt, index, data, model, tokenizer, f_o):
 
     #logger.info(f'Questions embeddings shape: {embedding.size()}')
 
-def main(opt):
+def main(opt, index_obj=None):
     src.slurm.init_distributed_mode(opt)
     args = opt
     if os.path.exists(args.output_path):
@@ -82,7 +82,10 @@ def main(opt):
     #if not opt.no_fp16:
     #    model = model.half()
 
-    index = OndiskIndexer(args.index_file, args.passage_file)
+    if index_obj is None:
+        index = OndiskIndexer(args.index_file, args.passage_file)
+    else:
+        index = index_obj
 
     output_path = Path(args.output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
