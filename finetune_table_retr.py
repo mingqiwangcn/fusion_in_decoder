@@ -433,7 +433,7 @@ def main(opt):
     eval_dataloader = DataLoader(
         eval_dataset, 
         sampler=eval_sampler, 
-        batch_size=opt.per_gpu_batch_size,
+        batch_size=1,
         num_workers=0, 
         collate_fn=collator_function
     )

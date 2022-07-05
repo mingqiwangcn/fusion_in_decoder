@@ -83,12 +83,21 @@ class Dataset(torch.utils.data.Dataset):
     def get_example(self, index):
         return self.data[index]
 
+def get_max_token_size(batch_text_passages, tokenizer, max_length):
+    max_size_lst = []
+    for k, text_passages in enumerate(batch_text_passages):
+        try_encoded = tokenizer.batch_encode_plus(text_passages)['input_ids']
+        max_token_size = max([len(a) for a in try_encoded])
+        max_size_lst.append(max_token_size)
+    return min(max_length, max(max_size_lst))
+
 def encode_passages(batch_text_passages, tokenizer, max_length):
     passage_ids, passage_masks = [], []
+    max_token_size = get_max_token_size(batch_text_passages, tokenizer, max_length)
     for k, text_passages in enumerate(batch_text_passages):
         p = tokenizer.batch_encode_plus(
             text_passages,
-            max_length=max_length,
+            max_length=max_token_size,
             pad_to_max_length=True,
             return_tensors='pt',
             truncation=True
