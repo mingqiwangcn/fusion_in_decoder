@@ -477,6 +477,7 @@ if __name__ == "__main__":
     options.add_reader_options()
     options.add_eval_options()
     args = options.parse()
+    args.sql_batch_no = 0
     msg_info = main(args)
     if not msg_info['state']:
         print(msg_info['msg'])

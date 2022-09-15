@@ -42,6 +42,12 @@ class Options():
         self.parser.add_argument('--use_checkpoint', action='store_true', help='use checkpoint in the encoder')
         self.parser.add_argument('--text_maxlength', type=int, default=300, 
                         help='maximum number of tokens in text segments (question+passage)')
+        
+        
+        self.parser.add_argument('--question_maxlength', type=int, default=50, 
+                        help='maximum number of tokens in questions')
+
+
         self.parser.add_argument('--answer_maxlength', type=int, default=-1, 
                         help='maximum number of tokens used to train the model, no truncation if -1')
         self.parser.add_argument('--no_title', action='store_true', 
@@ -74,6 +80,7 @@ class Options():
        
         self.parser.add_argument('--fusion_retr_model', type=str) 
         self.parser.add_argument('--max_epoch', type=int) 
+        self.parser.add_argument('--ckp_num', type=int) 
         self.parser.add_argument('--retr_model_type', type=str) 
         self.parser.add_argument('--do_train', action="store_true")
         self.parser.add_argument('--cuda', type=int, default=0)
