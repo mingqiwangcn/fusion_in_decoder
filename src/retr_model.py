@@ -23,12 +23,6 @@ class FusionRetrModel(nn.Module):
                              opts=opts)
         return fusion_scores_redo
  
-    def std_norm(self, scores):
-        mean_score = scores.mean()
-        std_score = scores.std()
-        ret_scores = (scores - mean_score) / (std_score + 1e-5)
-        return ret_scores
-
     def get_table_aggr_states(self, batch_data, batch_input_states, opts=None):
         batch_passage_states = self.passage_fnt(batch_input_states)
         bsz, num_layers, _, num_feature_1 = batch_passage_states.shape
@@ -113,7 +107,7 @@ class FusionRetrModel(nn.Module):
             item_masked_scores = item_scores * item_masks
             item_adapt_scores = item_masked_scores.sum(dim=[0,2])
             item_fusion_scores = fusion_scores[idx]
-            passage_scores = item_adapt_scores # + item_fusion_scores
+            passage_scores = item_adapt_scores 
             batch_passage_scores.append(passage_scores)
                  
         return batch_passage_scores 
