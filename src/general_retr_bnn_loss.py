@@ -9,6 +9,7 @@ class FusionGeneralRetrBNNLoss(nn.Module):
          
     def forward(self, batch_score, batch_answers, opts=None):
         mle_loss = self.mle_loss_fnt(batch_score, batch_answers, opts=opts)
-        loss = (opts['log_variational_posterior'] - opts['log_prior']) / len(batch_score) + mle_loss
+        complex_loss = (opts['log_variational_posterior'] - opts['log_prior']) / len(batch_score)
+        loss = complex_loss + mle_loss
         return loss
 
