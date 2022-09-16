@@ -19,14 +19,16 @@ import src.model
 from tqdm import tqdm
 import os
 import json
-from src.retr_model import FusionRetrModel 
-from src.general_retr_loss import FusionGeneralRetrLoss
+from src.retr_model_mle import RetrModelMLE
+from src.retr_model_bnn import RetrModelBNN
+from src.general_retr_loss import FusionGeneralRetrLoss 
+from src.general_retr_bnn_loss import FusionGeneralRetrBNNLoss
 import torch.optim as optim
 import time
 from src.retr_utils import MetricRecorder, get_top_metrics
 import logging
 
-logging.basicConfig(level=logging.ERROR)
+#logging.basicConfig(level=logging.ERROR)
 
 Num_Answers = 1
 global_steps = 0
@@ -46,12 +48,23 @@ def get_device(cuda):
     return device
 
 def get_loss_fn(opt):
-    loss_fn = FusionGeneralRetrLoss()
-    logger.info('loss function, FusionGeneralRetrLoss')
+    if not opt.bnn:
+        loss_fn = FusionGeneralRetrLoss()
+        logger.info('loss function, FusionGeneralRetrLoss')
+    else:
+        loss_fn = FusionGeneralRetrBNNLoss()
+        logger.info('loss function, FusionGeneralRetrBNNLoss')
+
     return loss_fn
 
 def get_retr_model(opt):
-    retr_model = FusionRetrModel()
+    if not opt.bnn:
+        retr_model = RetrModelMLE()
+        logger.info('Model, RetrModelMLE')
+    else:
+        retr_model = RetrModelBNN()
+        logger.info('Model, RetrModelBNN')
+
     if opt.fusion_retr_model is not None:
         logger.info('loading pretrained model (%s)' % opt.fusion_retr_model)
         state_dict = torch.load(opt.fusion_retr_model, map_location=opt.device)
@@ -119,9 +132,13 @@ def log_metrics(epoc, metric_rec,
     if loss is not None:
         str_info += ' global_steps=%d' % global_steps
     #logger.info(str_info)
+    print(str_info)
 
     return batch_sorted_idxes
 
+def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks):
+    retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False) 
+    return retr_scores 
 
 def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, 
              model_tag=None, out_dir=None, model_file=None):
@@ -152,7 +169,10 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
 
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, dataset)
             batch_data = get_batch_data(examples)
-            retr_scores = retr_model(batch_data, scores, score_states, context_mask)    
+            if not opt.bnn:
+                retr_scores = retr_model(batch_data, scores, score_states, context_mask)    
+            else:
+                retr_scores = bnn_predict(retr_model, batch_data, scores, score_states, context_mask)
             batch_answers = get_batch_answers(batch_data)
              
             t2 = time.time()
@@ -243,7 +263,7 @@ def train(model, retr_model,
     assert(Num_Answers == 1) 
     num_batch = len(train_dataloader)
     
-    checkpoint_steps = num_batch // opt.ckp_num
+    checkpoint_steps = 25 # num_batch // opt.ckp_num
     
     epoc_bar_desc = 'sql %d epoch' % opt.sql_batch_no
     for epoc in tqdm(range(opt.max_epoch), desc=epoc_bar_desc):
@@ -254,7 +274,7 @@ def train(model, retr_model,
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, train_dataset)
             batch_data = get_batch_data(examples)
             opts = {}
-            retr_scores = retr_model(batch_data, scores, score_states, context_mask, opts=opts) 
+            retr_scores = retr_model.sample_forward(batch_data, scores, score_states, context_mask, opts=opts) 
             batch_answers = get_batch_answers(batch_data) 
             loss = loss_fn(retr_scores, batch_answers, opts=opts)
             optimizer.zero_grad()

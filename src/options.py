@@ -77,7 +77,8 @@ class Options():
         self.parser.add_argument('--name', type=str, default='experiment_name', help='name of the experiment')
         self.parser.add_argument('--checkpoint_dir', type=str, default='./checkpoint/', help='models are saved here')
         self.parser.add_argument('--model_path', type=str, default='none', help='path for retraining')
-       
+      
+        self.parser.add_argument('--bnn', type=int, help='Bayesian NN') 
         self.parser.add_argument('--fusion_retr_model', type=str) 
         self.parser.add_argument('--max_epoch', type=int) 
         self.parser.add_argument('--ckp_num', type=int) 

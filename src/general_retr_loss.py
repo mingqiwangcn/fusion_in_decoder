@@ -10,33 +10,31 @@ class FusionGeneralRetrLoss(nn.Module):
 
     def forward(self, batch_score, batch_answers, opts=None):
         batch_loss = .0
-        batch_num = 0
+        batch_num = len(batch_score)
         
         for b_idx, item_scores in enumerate(batch_score):
             answer_lst = batch_answers[b_idx]
             assert(len(item_scores) == len(answer_lst))
             
             pos_idxes, neg_idxes = self.get_pos_neg_idxes(answer_lst)
-            if (len(pos_idxes) == 0) or (len(neg_idxes) == 0):
-                continue
+            
+            assert(len(pos_idxes) > 0) and (len(neg_idxes) > 0)
 
             labels = [(1 if a['em'] >= 1 else 0) for a in answer_lst]
             labels = torch.tensor(labels).float().to(item_scores.device)
             item_loss = self.loss_fn(item_scores, labels)
              
             batch_loss += item_loss
-            batch_num += 1
 
-        if batch_num > 0: 
-            loss = batch_loss / batch_num
-            if opts is not None:
-                reg_score_lst = opts['reg_score']
-                teg_loss = torch.stack(reg_score_lst).mean()
-                loss += teg_loss
-        else:
-            loss = None
+        loss = batch_loss / batch_num
+        if opts is not None:
+            reg_score_lst = opts['reg_score']
+            teg_loss = torch.stack(reg_score_lst).mean()
+            loss += teg_loss
+       
+        assert(loss is not None) 
         return loss
-    
+
     def get_pos_neg_idxes(self, answer_lst):
         pos_idxes = []
         neg_idxes = []

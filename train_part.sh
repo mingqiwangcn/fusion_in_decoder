@@ -1,14 +1,15 @@
-if [ "$#" -ne 5 ]; then
-    echo "Usage: ./finetune_syt_retr_.sh <dataset> <experiment> <sql_expr> <train itr> <part_no>"
+if [ "$#" -ne 3 ]; then
+    echo "Usage: ./finetune_syt_retr_.sh <dataset> <part_no> <bnn>"
     exit
 fi
 dataset=$1
-exprt=$2
-sql_expr=$3
-train_itr=$4
-part_no=$5
+exprt=rel_graph
+sql_expr=sql_data
+train_itr=train_0
+part_no=$2
+bnn=$3
 exprt_dir=/home/cc/code/open_table_discovery/table2question/dataset/${dataset}/${sql_expr}
-chk_name=${dataset}_${exprt}_${sql_expr}_${train_itr}_part_${part_no}
+chk_name=${dataset}_part_${part_no}_bnn_${bnn}
 python ./finetune_table_retr.py \
     --do_train \
     --model_path ~/code/models/tqa_reader_base \
@@ -24,3 +25,4 @@ python ./finetune_table_retr.py \
     --patience_steps 6 \
     --question_maxlength 50 \
     --text_maxlength 300 \
+    --bnn ${bnn}

@@ -1,6 +1,8 @@
 import math
 import torch
+import torch.nn.functional as F
 import torch.nn as nn
+
 
 class Gaussian(object):
     def __init__(self, mu, rho):
@@ -14,13 +16,14 @@ class Gaussian(object):
         return torch.log1p(torch.exp(self.rho))
     
     def sample(self):
-        epsilon = self.normal.sample(self.rho.size())
+        epsilon = self.normal.sample(self.rho.size()).to(self.sigma.device)
         return self.mu + self.sigma * epsilon
     
     def log_prob(self, input_x):
-        return (-math.log(math.sqrt(2 * math.pi))
+        coefficient = math.log(math.sqrt(2 * math.pi))
+        return (- coefficient
                 - torch.log(self.sigma)
-                - ((input_x - self.mu) ** 2) / (2 * self.sigma ** 2)).sum()
+                - ((input_x - self.mu) ** 2) / (2 * self.sigma ** 2)).mean()
 
 class GaussianPrior(object):
     def __init__(self, mu, sigma):
@@ -29,7 +32,7 @@ class GaussianPrior(object):
         self.gaussian = torch.distributions.Normal(mu,sigma)
     
     def log_prob(self, input_x):
-        return self.gaussian.log_prob(input_x)
+        return self.gaussian.log_prob(input_x).mean()
 
 
 class BayesianLinear(nn.Module):

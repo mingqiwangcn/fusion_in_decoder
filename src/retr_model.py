@@ -2,31 +2,37 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class FusionRetrModel(nn.Module):
+class FusionRetrModelBase(nn.Module):
     def __init__(self):
-        super(FusionRetrModel, self).__init__()
+        super(FusionRetrModelBase, self).__init__()
         D = 768
+      
+        self.passage_fnt = self.create_linear_layer(D * 3, D)
+        self.table_fnt = self.create_linear_layer(D * 3, D)
         
-        self.passage_fnt = nn.Linear(D * 3, D)
+        self.feat_l1 = self.create_linear_layer(D * 2, D)
+        self.feat_relu = nn.ReLU()
+        self.feat_dropout = nn.Dropout()
+        self.feat_l2 = self.create_linear_layer(D, 1)
 
-        self.table_fnt = nn.Linear(D * 3, D)
-
-        self.feature_fnt = nn.Sequential(
-                        nn.Linear(D * 2, D),
-                        nn.ReLU(),
-                        nn.Dropout(),
-                        nn.Linear(D, 1)
-        )
-         
-    def forward(self, batch_data, fusion_scores, fusion_states, passage_masks, opts=None):
-        fusion_scores_redo = self.recompute_fusion_score(batch_data, fusion_scores, fusion_states, passage_masks,
-                             opts=opts)
-        return fusion_scores_redo
- 
-    def get_table_aggr_states(self, batch_data, batch_input_states, opts=None):
-        batch_passage_states = self.passage_fnt(batch_input_states)
+   
+    def feature_fnt(self, input_x, sample=False, calculate_log_probs=False):
+        output_x_1 = self.feat_l1(input_x, sample=sample, calculate_log_probs=calculate_log_probs)
+        output_x_2 = self.feat_relu(output_x_1)
+        output_x_3 = self.feat_dropout(output_x_2)
+        output = self.feat_l2(output_x_3, sample=sample, calculate_log_probs=calculate_log_probs)
+        return output 
+    
+    def create_linear_layer(self, in_features, out_features):
+        return None 
+      
+    def get_table_aggr_states(self, batch_data, batch_input_states, 
+                              sample=False, calculate_log_probs=False, opts=None):
+        batch_passage_states = self.passage_fnt(batch_input_states, 
+                                                sample=sample, calculate_log_probs=calculate_log_probs)
         bsz, num_layers, _, num_feature_1 = batch_passage_states.shape
-        batch_p_table_states = self.table_fnt(batch_input_states) 
+        batch_p_table_states = self.table_fnt(batch_input_states, 
+                                              sample=sample, calculate_log_probs=calculate_log_probs) 
         _, _, _, num_feature_2 = batch_p_table_states.shape
          
         item_passage_feature_lst = []
@@ -84,7 +90,12 @@ class FusionRetrModel(nn.Module):
         reg_score = torch.triu(scores, diagonal=1).mean() 
         return reg_score
 
-    def recompute_fusion_score(self, batch_data, fusion_scores, fusion_states, passage_masks, opts=None):
+    def forward(self, batch_data, fusion_scores, fusion_states, passage_masks, 
+                sample=False, calculate_log_probs=False, opts=None):
+        
+        if self.training:
+            assert(opts is not None)
+
         answer_states = fusion_states['answer_states']
         answer_states = answer_states[:, -1:, :, :]
         bsz, n_layers, _, emb_size = answer_states.size()
@@ -96,8 +107,10 @@ class FusionRetrModel(nn.Module):
         input_states = [answer_states, query_passage_states, answer_states * query_passage_states]
         input_states = torch.cat(input_states, dim=-1)
        
-        p_aggr_features = self.get_table_aggr_states(batch_data, input_states, opts=opts)
-        batch_scores = self.feature_fnt(p_aggr_features).squeeze(-1)
+        p_aggr_features = self.get_table_aggr_states(batch_data, input_states, 
+                                                     sample=sample, calculate_log_probs=calculate_log_probs, opts=opts)
+        batch_scores = self.feature_fnt(p_aggr_features, 
+                                        sample=sample, calculate_log_probs=calculate_log_probs).squeeze(-1)
        
         batch_passage_scores = []
         for idx in range(len(batch_data)):
