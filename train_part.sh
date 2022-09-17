@@ -21,8 +21,8 @@ python ./finetune_table_retr.py \
     --name ${chk_name} \
     --checkpoint_dir output \
     --ckp_steps 50 \
-    --max_epoch 10 \
-    --patience_steps 6 \
+    --max_epoch 30 \
+    --patience_steps 10000 \
     --question_maxlength 50 \
     --text_maxlength 300 \
     --bnn ${bnn} \

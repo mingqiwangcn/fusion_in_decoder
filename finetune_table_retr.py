@@ -286,7 +286,7 @@ def train(model, retr_model,
     assert(Num_Answers == 1) 
     num_batch = len(train_dataloader)
     
-    checkpoint_steps = opt.ckp_steps
+    checkpoint_steps = min(opt.ckp_steps, num_batch)
     
     epoc_bar_desc = 'sql %d epoch' % opt.sql_batch_no
     for epoc in tqdm(range(opt.max_epoch), desc=epoc_bar_desc):
