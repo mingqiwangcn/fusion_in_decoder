@@ -80,6 +80,7 @@ class Options():
       
         self.parser.add_argument('--bnn', type=int, help='Bayesian NN') 
         self.parser.add_argument('--fusion_retr_model', type=str) 
+        self.parser.add_argument('--prior_model', type=str) 
         self.parser.add_argument('--max_epoch', type=int) 
         self.parser.add_argument('--ckp_steps', type=int) 
         self.parser.add_argument('--retr_model_type', type=str) 

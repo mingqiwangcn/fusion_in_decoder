@@ -3,11 +3,19 @@ from src.bnn.bayesian_linear import BayesianLinear
 import torch.nn
 
 class RetrModelBNN(FusionRetrModelBase):
-    def create_linear_layer(self, in_features, out_features):
-        weight_mu = 0
-        weight_sigma = 0.1
-        bias_mu = 0
-        bias_sigma = 0.1
+    def create_linear_layer(self, in_features, out_features, prior):
+        #import pdb; pdb.set_trace()
+        if prior is None:
+            weight_mu = 0
+            weight_sigma = 0.1
+            bias_mu = 0
+            bias_sigma = 0.1
+        else:
+           weight_mu = prior['weight_mu']
+           weight_sigma = prior['weight_sigma']
+           bias_mu = prior['bias_mu']
+           bias_sigma = prior['bias_sigma']
+            
         return BayesianLinear(in_features, out_features, weight_mu, weight_sigma, bias_mu, bias_sigma)
     
     def log_prior(self):

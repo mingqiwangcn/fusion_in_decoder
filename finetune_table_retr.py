@@ -57,12 +57,35 @@ def get_loss_fn(opt):
 
     return loss_fn
 
+def load_prior_model(opt):
+    prior = None
+    if opt.prior_model is not None:
+        #import pdb; pdb.set_trace()
+        state_dict = torch.load(opt.prior_model, map_location=opt.device)
+        model_bnn = RetrModelBNN(None)
+        model_bnn.load_state_dict(state_dict)
+        prior = {}
+        for item in [
+                        ['passage_fnt', model_bnn.passage_fnt], 
+                        ['table_fnt', model_bnn.table_fnt], 
+                        ['feat_l1', model_bnn.feat_l1],
+                        ['feat_l2', model_bnn.feat_l2]
+                    ]:
+            prior[item[0]] = {
+                'weight_mu':item[1].weight.mu.detach().to(opt.device),
+                'weight_sigma':item[1].weight.sigma.detach().to(opt.device),
+                'bias_mu':item[1].bias.mu.detach().to(opt.device),
+                'bias_sigma':item[1].bias.sigma.detach().to(opt.device),
+            }
+    return prior
+    
 def get_retr_model(opt):
     if not opt.bnn:
         retr_model = RetrModelMLE()
         logger.info('Model, RetrModelMLE')
     else:
-        retr_model = RetrModelBNN()
+        prior = load_prior_model(opt)
+        retr_model = RetrModelBNN(prior)
         logger.info('Model, RetrModelBNN')
 
     if opt.fusion_retr_model is not None:

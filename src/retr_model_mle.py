@@ -6,7 +6,7 @@ class CustomLinear(nn.Linear):
         return super().forward(input_x)
 
 class RetrModelMLE(FusionRetrModelBase):
-    def create_linear_layer(self, in_features, out_features):
+    def create_linear_layer(self, in_features, out_features, prior):
         return CustomLinear(in_features, out_features) 
     
     def sample_forward(self, batch_data, fusion_scores, fusion_states, passage_masks,

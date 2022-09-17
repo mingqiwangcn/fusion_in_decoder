@@ -20,9 +20,10 @@ python ./finetune_table_retr.py \
     --cuda 0 \
     --name ${chk_name} \
     --checkpoint_dir output \
+    --ckp_steps 50 \
     --max_epoch 10 \
     --patience_steps 6 \
     --question_maxlength 50 \
     --text_maxlength 300 \
     --bnn ${bnn} \
-    --ckp_steps 25 \
+    --prior_model output/nq_tables_part_1_bnn_1/sql_0_epoc_8_step_450_model.pt

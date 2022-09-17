@@ -3,17 +3,26 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class FusionRetrModelBase(nn.Module):
-    def __init__(self):
-        super(FusionRetrModelBase, self).__init__()
+    def __init__(self, prior=None):
+        super().__init__()
         D = 768
-      
-        self.passage_fnt = self.create_linear_layer(D * 3, D)
-        self.table_fnt = self.create_linear_layer(D * 3, D)
+        passage_fnt_prior = None
+        table_fnt_prior = None
+        feat_l1_prior = None
+        feat_l2_prior = None
+        if prior is not None:
+            passage_fnt_prior = prior['passage_fnt']
+            table_fnt_prior = prior['table_fnt']
+            feat_l1_prior = prior['feat_l1']
+            feat_l2_prior = prior['feat_l2']
+         
+        self.passage_fnt = self.create_linear_layer(D * 3, D, passage_fnt_prior)
+        self.table_fnt = self.create_linear_layer(D * 3, D, table_fnt_prior)
         
-        self.feat_l1 = self.create_linear_layer(D * 2, D)
+        self.feat_l1 = self.create_linear_layer(D * 2, D, feat_l1_prior)
         self.feat_relu = nn.ReLU()
         self.feat_dropout = nn.Dropout()
-        self.feat_l2 = self.create_linear_layer(D, 1)
+        self.feat_l2 = self.create_linear_layer(D, 1, feat_l2_prior)
 
    
     def feature_fnt(self, input_x, sample=False, calculate_log_probs=False):
