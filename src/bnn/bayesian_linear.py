@@ -23,7 +23,7 @@ class Gaussian(object):
         coefficient = math.log(math.sqrt(2 * math.pi))
         return (- coefficient
                 - torch.log(self.sigma)
-                - ((input_x - self.mu) ** 2) / (2 * self.sigma ** 2)).mean()
+                - ((input_x - self.mu) ** 2) / (2 * self.sigma ** 2)).sum()
 
 class GaussianPrior(object):
     def __init__(self, mu, sigma):
@@ -32,13 +32,11 @@ class GaussianPrior(object):
         self.gaussian = torch.distributions.Normal(mu,sigma)
     
     def log_prob(self, input_x):
-        return self.gaussian.log_prob(input_x).mean()
+        return self.gaussian.log_prob(input_x).sum()
 
 
 class BayesianLinear(nn.Module):
-    def __init__(self, in_features, out_features, 
-                 weight_mu_prior, weight_sigma_prior,
-                 bias_mu_prior, bias_sigma_prior):
+    def __init__(self, in_features, out_features):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -51,10 +49,25 @@ class BayesianLinear(nn.Module):
         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(-5,-4))
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
         # Prior distributions
-        self.weight_prior = GaussianPrior(weight_mu_prior, weight_sigma_prior)
-        self.bias_prior = GaussianPrior(bias_mu_prior, bias_sigma_prior) 
+        self.weight_prior = None # GaussianPrior(weight_mu_prior, weight_sigma_prior)
+        self.bias_prior = None # GaussianPrior(bias_mu_prior, bias_sigma_prior) 
         self.log_prior = 0
         self.log_variational_posterior = 0
+
+    def set_prior(self, prior):
+        if prior is None:
+            weight_mu_prior = 0
+            weight_sigma_prior = 0.1
+            bias_mu_prior = 0
+            bias_sigma_prior = 0.1
+        else:
+            weight_mu_prior = prior['weight_mu']
+            weight_sigma_prior = prior['weight_sigma']
+            bias_mu_prior = prior['bias_mu']
+            bias_sigma_prior = prior['bias_sigma']
+
+        self.weight_prior = GaussianPrior(weight_mu_prior, weight_sigma_prior)
+        self.bias_prior = GaussianPrior(bias_mu_prior, bias_sigma_prior)
 
     def forward(self, input_x, sample=False, calculate_log_probs=False):
         if self.training or sample:

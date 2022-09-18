@@ -1,5 +1,5 @@
-if [ "$#" -ne 3 ]; then
-    echo "Usage: ./finetune_syt_retr_.sh <dataset> <part_no> <bnn>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: ./finetune_syt_retr_.sh <dataset> <part_no> <bnn> <prior>"
     exit
 fi
 dataset=$1
@@ -8,8 +8,13 @@ sql_expr=sql_data
 train_itr=train_0
 part_no=$2
 bnn=$3
+prior=$4
 exprt_dir=/home/cc/code/open_table_discovery/table2question/dataset/${dataset}/${sql_expr}
 chk_name=${dataset}_part_${part_no}_bnn_${bnn}
+if [ "${prior}" != "none" ]; then
+    chk_name=${chk_name}_prior
+    echo "use prior "${prior} 
+fi
 python ./finetune_table_retr.py \
     --do_train \
     --model_path ~/code/models/tqa_reader_base \
@@ -26,4 +31,4 @@ python ./finetune_table_retr.py \
     --question_maxlength 50 \
     --text_maxlength 300 \
     --bnn ${bnn} \
-    --prior_model output/nq_tables_part_1_bnn_1/sql_0_epoc_8_step_450_model.pt
+    --prior_model ${prior}

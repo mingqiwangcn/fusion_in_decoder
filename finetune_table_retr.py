@@ -59,10 +59,11 @@ def get_loss_fn(opt):
 
 def load_prior_model(opt):
     prior = None
+    state_dict = None
     if opt.prior_model is not None:
         #import pdb; pdb.set_trace()
         state_dict = torch.load(opt.prior_model, map_location=opt.device)
-        model_bnn = RetrModelBNN(None)
+        model_bnn = RetrModelBNN()
         model_bnn.load_state_dict(state_dict)
         prior = {}
         for item in [
@@ -77,16 +78,20 @@ def load_prior_model(opt):
                 'bias_mu':item[1].bias.mu.detach().to(opt.device),
                 'bias_sigma':item[1].bias.sigma.detach().to(opt.device),
             }
-    return prior
+    return prior, state_dict
     
 def get_retr_model(opt):
     if not opt.bnn:
-        retr_model = RetrModelMLE()
         logger.info('Model, RetrModelMLE')
+        retr_model = RetrModelMLE()
     else:
-        prior = load_prior_model(opt)
-        retr_model = RetrModelBNN(prior)
         logger.info('Model, RetrModelBNN')
+        #import pdb; pdb.set_trace()
+        prior, prior_state_dict = load_prior_model(opt)
+        retr_model = RetrModelBNN()
+        if (prior_state_dict is not None) and opt.do_train:
+            retr_model.load_state_dict(prior_state_dict)
+        retr_model.set_prior(prior) 
 
     if opt.fusion_retr_model is not None:
         logger.info('loading pretrained model (%s)' % opt.fusion_retr_model)
