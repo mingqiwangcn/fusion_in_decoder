@@ -25,7 +25,7 @@ python ./finetune_table_retr.py \
     --cuda 0 \
     --name ${chk_name} \
     --checkpoint_dir output \
-    --ckp_steps 50 \
+    --ckp_steps 25 \
     --max_epoch 30 \
     --patience_steps 10000 \
     --question_maxlength 50 \
