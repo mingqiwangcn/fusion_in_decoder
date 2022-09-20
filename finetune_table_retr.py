@@ -27,6 +27,7 @@ import torch.optim as optim
 import time
 from src.retr_utils import MetricRecorder, get_top_metrics
 import logging
+import torch.nn.functional as F
 
 #logging.basicConfig(level=logging.ERROR)
 
@@ -201,9 +202,26 @@ def log_metrics(epoc, metric_rec,
 
     return batch_sorted_idxes
 
+def bnn_predict_2(model, batch_data, fusion_scores, fusion_states, passage_masks):
+    retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False)
+    return retr_scores
+
 def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks):
-    retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False) 
-    return retr_scores 
+    NUM_SAMPLES = 10
+    log_prob_lst = [] 
+    for sample_idx in range(NUM_SAMPLES):
+        retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=True)
+        retr_log_probs = F.logsigmoid(torch.stack(retr_scores)).unsqueeze(0)
+        log_prob_lst.append(retr_log_probs)
+    
+    retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False)
+    retr_log_probs = F.logsigmoid(torch.stack(retr_scores)).unsqueeze(0)
+    log_prob_lst.append(retr_log_probs)
+    
+    sample_log_probs = torch.cat(log_prob_lst, dim=0)
+    bnn_scores = sample_log_probs.mean(dim=0)
+     
+    return bnn_scores 
 
 def evaluate_train(opt, model, retr_model, dataset, fusion_batch):
     acc_lst = []

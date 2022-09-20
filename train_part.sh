@@ -25,10 +25,10 @@ python ./finetune_table_retr.py \
     --cuda 0 \
     --name ${chk_name} \
     --checkpoint_dir output \
-    --ckp_steps 25 \
-    --max_epoch 30 \
-    --patience_steps 10000 \
+    --ckp_steps 50 \
+    --max_epoch 20 \
+    --patience_steps 20 \
     --question_maxlength 50 \
     --text_maxlength 300 \
     --bnn ${bnn} \
-    --prior_model ${prior}
+    #--prior_model ${prior}
