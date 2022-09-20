@@ -34,6 +34,43 @@ Num_Answers = 1
 global_steps = 0
 best_metric_info = {}
 
+def get_coreset_loader(coreset_method, opt, train_data_dict, train_dataset, train_batch, collator):
+    train_qid_lst = None
+    if train_batch is not None:
+        train_item_idxes = train_batch[0]
+        train_qid_lst = [train_dataset.data[a]['id'] for a in train_item_idxes]
+
+    coreset_qid_lst = coreset_method.get_coreset(train_qid_lst)
+    data = []
+    for qid in coreset_qid_lst:
+        data.append(train_data_dict[qid])
+
+    coreset_dataset = src.data.Dataset(data, opt.n_context)
+    coreset_sampler = SequentialSampler(coreset_dataset)
+    coreset_loader = DataLoader(
+        coreset_dataset,
+        sampler=coreset_sampler,
+        batch_size=opt.per_gpu_eval_batch_size,
+        drop_last=False,
+        num_workers=10,
+        collate_fn=collator)
+    return coreset_dataset, coreset_loader
+
+def stat_coreset(model, retr_model, coreset_method, step_info, opt, train_data_dict,
+                 train_dataset, train_batch, collator, tokenizer):
+    coreset_dataset, coreset_loader = get_coreset_loader(coreset_method, opt,
+                                                train_data_dict, train_dataset, train_batch, collator)
+    coreset_metrics = None
+    desc = 'stat train step %d' % step_info['step']
+
+    for coreset_batch in tqdm(coreset_loader, total=len(coreset_loader), desc=desc):
+        item_idxes = coreset_batch[0]
+        coreset_metrics = evaluate_train(opt, model, retr_model, coreset_dataset, coreset_batch)
+        coreset_method.do(coreset_dataset, item_idxes, coreset_metrics, step_info)
+
+    coreset_method.on_checkpoint(step_info)
+
+
 def init_global():
     global Num_Answers
     global global_steps
@@ -168,6 +205,30 @@ def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks):
     retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False) 
     return retr_scores 
 
+def evaluate_train(opt, model, retr_model, dataset, fusion_batch):
+    acc_lst = []
+    model.eval()
+    retr_model.eval()
+
+    scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, dataset)
+    batch_data = get_batch_data(examples)
+    if not opt.bnn:
+        retr_scores = retr_model(batch_data, scores, score_states, context_mask)    
+    else:
+        retr_scores = bnn_predict(retr_model, batch_data, scores, score_states, context_mask)
+
+    batch_size = len(retr_scores)
+    #import pdb; pdb.set_trace()
+    for b_idx in range(batch_size):
+        item_scores = retr_scores[b_idx]
+        scores = item_scores.data.cpu().numpy()
+        top_idx = np.argmax(scores)
+        correct = batch_data[b_idx]['answers'][top_idx]['em'] 
+        acc_lst.append(correct)
+
+    retr_model.train()
+    return acc_lst
+
 def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, 
              model_tag=None, out_dir=None, model_file=None):
     #logger.info('Start evaluation')
@@ -228,6 +289,7 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
         f_o_metric.close() 
     
     update_best_metric(metric_rec, model_tag, out_dir, model_file)
+    retr_model.train()
         
 def update_best_metric(metric_rec, model_tag, out_dir, model_file):
     metric_dict = metric_rec.metric_dict 
@@ -258,12 +320,23 @@ def update_best_metric(metric_rec, model_tag, out_dir, model_file):
 
 def should_stop_train(opt):
     return best_metric_info['patience_steps'] >= opt.patience_steps    
+
+def get_step_info(step, dataset, batch):
+    qid_lst = None
+    if batch is not None:
+        item_idxes = batch[0]
+        qid_lst = [dataset.data[a]['id'] for a in item_idxes]
+    step_info = {
+        'step':step,
+        'batch':qid_lst
+    }
+    return step_info
  
 def train(model, retr_model, 
           train_dataset, collator,
           eval_dataset, eval_dataloader, 
           tokenizer, 
-          opt):
+          opt, coreset_method=None, train_data_dict=None):
 
     loss_fn = get_loss_fn(opt)
     learing_rate = 1e-3
@@ -292,6 +365,12 @@ def train(model, retr_model,
     num_batch = len(train_dataloader)
     
     checkpoint_steps = min(opt.ckp_steps, num_batch)
+   
+    if coreset_method is not None:
+        coreset_method.init_data(train_dataset.data)
+        step_info = get_step_info(0, None, None)
+        stat_coreset(model, retr_model, coreset_method,
+                     step_info, opt, train_data_dict, train_dataset, None, collator, tokenizer)
     
     epoc_bar_desc = 'sql %d epoch' % opt.sql_batch_no
     for epoc in tqdm(range(opt.max_epoch), desc=epoc_bar_desc):
@@ -299,19 +378,28 @@ def train(model, retr_model,
         bar_desc = 'sql %d epoch %d train' % (opt.sql_batch_no, epoc)
         for itr, fusion_batch in tqdm(enumerate(train_dataloader), total=num_batch, desc=bar_desc):
             t1 = time.time()
+            
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, train_dataset)
             batch_data = get_batch_data(examples)
             opts = {}
+            assert(retr_model.training)
             retr_scores = retr_model.sample_forward(batch_data, scores, score_states, context_mask, opts=opts) 
             batch_answers = get_batch_answers(batch_data) 
             loss = loss_fn(retr_scores, batch_answers, opts=opts)
             optimizer.zero_grad()
-            if loss is None:
-                continue
+            
+            #if loss is None:
+                #continue
+            
             loss.backward()
             optimizer.step()
 
             global_steps += 1
+
+            if coreset_method is not None:
+                step_info = get_step_info(global_steps, train_dataset, fusion_batch)
+                stat_coreset(model, retr_model, coreset_method, step_info, opt, train_data_dict,
+                            train_dataset, fusion_batch, collator, tokenizer)
             
             t2 = time.time()
             time_span = t2 - t1
@@ -329,7 +417,6 @@ def train(model, retr_model,
                          eval_dataset, eval_dataloader,
                          tokenizer, opt, model_tag=model_tag, out_dir=out_dir, 
                          model_file=checkpoint_model_file)
-                retr_model.train()
                 
                 if should_stop_train(opt):
                     break
@@ -430,7 +517,7 @@ def print_args(opts):
                 opts.checkpoint_dir, opts.name)
     logger.info(str_info)  
 
-def main(opt):
+def main(opt, coreset_method=None):
     init_global()
     
     src.slurm.init_distributed_mode(opt)
@@ -497,11 +584,18 @@ def main(opt):
             world_size=opt.world_size,
         )
         train_dataset = src.data.Dataset(train_examples, opt.n_context, sort_by_score=False)
+
+        #import pdb; pdb.set_trace()        
+        train_data_dict = {}
+        for example in train_examples:
+            train_data_dict[example['id']]= example
+        
         logger.info("Start train")
+        
         best_metric = train(model, retr_model, 
                             train_dataset, collator_function,
                             eval_dataset, eval_dataloader, 
-                            tokenizer, opt)
+                            tokenizer, opt, coreset_method=coreset_method, train_data_dict=train_data_dict)
 
         msg_info = {
             'state':True,
