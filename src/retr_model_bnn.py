@@ -27,7 +27,7 @@ class RetrModelBNN(FusionRetrModelBase):
         return log_posterior
 
     def sample_forward(self, batch_data, fusion_scores, fusion_states, passage_masks, 
-                      sample=False, calculate_log_probs=False, opts=None, num_samples=1):
+                      sample=False, calculate_log_probs=False, opts=None, num_samples=3):
         outputs = []
         log_priors = torch.zeros(num_samples)
         log_variational_posteriors = torch.zeros(num_samples)
