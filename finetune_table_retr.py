@@ -127,8 +127,8 @@ def get_retr_model(opt):
         #import pdb; pdb.set_trace()
         prior, prior_state_dict = load_prior_model(opt)
         retr_model = RetrModelBNN()
-        if (prior_state_dict is not None) and opt.do_train:
-            retr_model.load_state_dict(prior_state_dict)
+        #if (prior_state_dict is not None) and opt.do_train:
+        #    retr_model.load_state_dict(prior_state_dict)
         retr_model.set_prior(prior) 
 
     if opt.fusion_retr_model is not None:
@@ -202,12 +202,12 @@ def log_metrics(epoc, metric_rec,
 
     return batch_sorted_idxes
 
-def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks):
+def bnn_predict_2(model, batch_data, fusion_scores, fusion_states, passage_masks):
     retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False)
     return retr_scores
 
-def bnn_predict_2(model, batch_data, fusion_scores, fusion_states, passage_masks):
-    NUM_SAMPLES = 10
+def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks):
+    NUM_SAMPLES = 6
     log_prob_lst = [] 
     for sample_idx in range(NUM_SAMPLES):
         retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=True)

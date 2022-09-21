@@ -23,7 +23,7 @@ class Gaussian(object):
         coefficient = math.log(math.sqrt(2 * math.pi))
         return (- coefficient
                 - torch.log(self.sigma)
-                - ((input_x - self.mu) ** 2) / (2 * self.sigma ** 2)).sum()
+                - ((input_x - self.mu) ** 2) / (2 * self.sigma ** 2)).mean()
 
 class GaussianPrior(object):
     def __init__(self, mu, sigma):
@@ -32,7 +32,7 @@ class GaussianPrior(object):
         self.gaussian = torch.distributions.Normal(mu,sigma)
     
     def log_prob(self, input_x):
-        return self.gaussian.log_prob(input_x).sum()
+        return self.gaussian.log_prob(input_x).mean()
 
 
 class BayesianLinear(nn.Module):
