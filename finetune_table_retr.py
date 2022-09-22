@@ -386,6 +386,7 @@ def train(model, retr_model,
    
     if coreset_method is not None:
         coreset_method.init_data(train_dataset.data)
+        coreset_method.set_epoch_steps(num_batch)
         step_info = get_step_info(0, None, None)
         stat_coreset(model, retr_model, coreset_method,
                      step_info, opt, train_data_dict, train_dataset, None, collator, tokenizer)
@@ -426,7 +427,7 @@ def train(model, retr_model,
             log_metrics(epoc, metric_rec, batch_data, retr_scores, batch_answers, time_span, total_time, 
                         (itr + 1), num_batch, loss.item()) 
             
-            if global_steps % checkpoint_steps == 0:
+            if (global_steps % checkpoint_steps == 0) and (coreset_method is None):
                 model_tag = 'step_%d' % global_steps
                 out_dir = os.path.join(opt.checkpoint_dir, opt.name)
                 checkpoint_model_file = save_model(out_dir, retr_model, epoc, tag=model_tag, opt=opt) 
@@ -439,7 +440,7 @@ def train(model, retr_model,
                 if should_stop_train(opt):
                     break
         
-        if should_stop_train(opt):
+        if should_stop_train(opt) and (coreset_method is None):
             logger.info('Training is stopped because of the patience_steps setting')
             break
    
