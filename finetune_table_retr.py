@@ -336,8 +336,11 @@ def update_best_metric(metric_rec, model_tag, out_dir, model_file):
     with open(best_metric_file, 'w') as f_o:
         f_o.write(json.dumps(best_metric_info))
 
-def should_stop_train(opt):
-    return best_metric_info['patience_steps'] >= opt.patience_steps    
+def should_stop_train(opt, coreset_method=None):
+    if coreset_method is None:
+        return best_metric_info['patience_steps'] >= opt.patience_steps    
+    else:
+        return False
 
 def get_step_info(step, dataset, batch):
     qid_lst = None
@@ -437,10 +440,10 @@ def train(model, retr_model,
                          tokenizer, opt, model_tag=model_tag, out_dir=out_dir, 
                          model_file=checkpoint_model_file)
                 
-                if should_stop_train(opt):
+                if should_stop_train(opt, coreset_method=coreset_method):
                     break
-        
-        if should_stop_train(opt) and (coreset_method is None):
+       
+        if should_stop_train(opt, coreset_method=coreset_method):
             logger.info('Training is stopped because of the patience_steps setting')
             break
    
@@ -571,26 +574,31 @@ def main(opt, coreset_method=None):
     
     retr_model = get_retr_model(opt)
 
-    eval_examples = src.data.load_data(
-        opt.eval_data, 
-        global_rank=opt.global_rank, #use the global rank and world size attibutes to split the eval set on multiple gpus
-        world_size=opt.world_size,
-    )
+    eval_examples = None
+    eval_dataset = None
+    eval_sampler = None
+    eval_dataloader = None
+    if coreset_method is None: 
+        eval_examples = src.data.load_data(
+            opt.eval_data, 
+            global_rank=opt.global_rank, 
+            world_size=opt.world_size,
+        )
     
-    eval_dataset = src.data.Dataset(
-        eval_examples, 
-        opt.n_context,
-        sort_by_score=False 
-    )
+        eval_dataset = src.data.Dataset(
+            eval_examples, 
+            opt.n_context,
+            sort_by_score=False 
+        )
 
-    eval_sampler = SequentialSampler(eval_dataset) 
-    eval_dataloader = DataLoader(
-        eval_dataset, 
-        sampler=eval_sampler, 
-        batch_size=1,
-        num_workers=0, 
-        collate_fn=collator_function
-    )
+        eval_sampler = SequentialSampler(eval_dataset) 
+        eval_dataloader = DataLoader(
+            eval_dataset, 
+            sampler=eval_sampler, 
+            batch_size=1,
+            num_workers=0, 
+            collate_fn=collator_function
+        )
     
     model_class = src.model.FiDT5
     model = model_class.from_pretrained(opt.model_path)
