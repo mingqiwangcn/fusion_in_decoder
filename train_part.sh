@@ -17,11 +17,7 @@ if [ "${prior}" != "none" ]; then
     echo "use prior "${prior} 
 fi
 train_file=${exprt_dir}/${train_itr}/${exprt}/data_parts/${part_no}.jsonl
-if [ "${coreset}" = "0" ]; then
-    eval_file=${exprt_dir}/dev/${exprt}/200.jsonl
-else
-    eval_file=${exprt_dir}/dev/${exprt}/coreset_fg.jsonl
-fi
+eval_file=${exprt_dir}/dev/${exprt}/200.jsonl
 
 echo "train file "${train_file}
 echo "eval file "${eval_file}
