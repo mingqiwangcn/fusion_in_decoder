@@ -99,7 +99,7 @@ def load_prior_model(opt):
     prior = None
     state_dict = None
     if (opt.prior_model is not None) and (opt.prior_model != 'none'):
-        #import pdb; pdb.set_trace()
+        print('loading prior %s' % opt.prior_model)
         state_dict = torch.load(opt.prior_model, map_location=opt.device)
         model_bnn = RetrModelBNN()
         model_bnn.load_state_dict(state_dict)
