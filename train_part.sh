@@ -34,7 +34,7 @@ python ./finetune_table_retr.py \
     --checkpoint_dir output \
     --ckp_steps 50 \
     --max_epoch 20 \
-    --patience_steps 20 \
+    --patience_steps 50 \
     --question_maxlength 50 \
     --text_maxlength 300 \
     --bnn ${bnn} \
