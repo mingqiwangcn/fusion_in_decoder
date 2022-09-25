@@ -197,8 +197,7 @@ def log_metrics(epoc, metric_rec,
     
     if loss is not None:
         str_info += ' global_steps=%d' % global_steps
-    #logger.info(str_info)
-    print(str_info)
+    logger.info(str_info)
 
     return batch_sorted_idxes
 
@@ -295,7 +294,7 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
         str_info += 'Accuracy, '
         for max_top in metric_dict:
             str_info += 'p@%d=%.2f ' % (max_top, metric_dict[max_top]['metric_mean'])
-        print(str_info)
+        logger.info(str_info)
     
     eval_metric_info = {}
     for max_top in metric_dict:
@@ -523,7 +522,7 @@ def set_logger(opt):
     global logger
     logger = logging.getLogger(__name__)
     logger.handlers = []
-    #logger.setLevel(logging.INFO)
+    logger.setLevel(logging.INFO)
 
     logger.propagate = False
     console = logging.StreamHandler()
@@ -563,7 +562,7 @@ def main(opt, coreset_method=None):
     dir_path.mkdir(parents=True, exist_ok=True)
     global logger
     set_logger(opt)
-    #print_args(opt)
+    print_args(opt)
 
     tokenizer = transformers.T5Tokenizer.from_pretrained('t5-base', return_dict=False)
 
@@ -617,8 +616,6 @@ def main(opt, coreset_method=None):
         for example in train_examples:
             train_data_dict[example['id']]= example
         
-        logger.info("Start train")
-        
         best_metric = train(model, retr_model, 
                             train_dataset, collator_function,
                             eval_dataset, eval_dataloader, 
@@ -630,7 +627,6 @@ def main(opt, coreset_method=None):
         }
         return msg_info
     else:
-        logger.info("Start eval")
         out_dir = os.path.join(opt.checkpoint_dir, opt.name)
         evaluate(0, model, retr_model,
                 eval_dataset, eval_dataloader,
