@@ -98,9 +98,8 @@ def get_loss_fn(opt):
 def load_prior_model(opt):
     prior = None
     state_dict = None
-    if opt.prior_model is not None:
+    if (opt.prior_model is not None) and (opt.prior_model != 'none'):
         #import pdb; pdb.set_trace()
-        logger.info('loading prior %s' % opt.prior_model)
         state_dict = torch.load(opt.prior_model, map_location=opt.device)
         model_bnn = RetrModelBNN()
         model_bnn.load_state_dict(state_dict)
@@ -306,16 +305,17 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
         f_o_pred.close()
         f_o_metric.close() 
     
-    update_best_metric(metric_rec, model_tag, out_dir, model_file)
+    update_best_metric(epoc, metric_rec, model_tag, out_dir, model_file)
     retr_model.train()
         
-def update_best_metric(metric_rec, model_tag, out_dir, model_file):
+def update_best_metric(epoc, metric_rec, model_tag, out_dir, model_file):
     metric_dict = metric_rec.metric_dict 
     if 'p@1' not in best_metric_info:
         best_metric_info['N'] = metric_rec.N
         best_metric_info['p@1'] = metric_dict[1]['metric_sum'] # metric_sum is integer and can use =
         best_metric_info['p@5'] = metric_dict[5]['metric_sum']
         best_metric_info['model_file'] = model_file
+        best_metric_info['epoch'] = epoc
         best_metric_info['patience_steps'] = 0
     else:
         best_metric_info['patience_steps'] += 1
@@ -325,11 +325,13 @@ def update_best_metric(metric_rec, model_tag, out_dir, model_file):
             best_metric_info['p@1'] = metric_dict[1]['metric_sum']
             best_metric_info['p@5'] = metric_dict[5]['metric_sum']
             best_metric_info['model_file'] = model_file
+            best_metric_info['epoch'] = epoc
             best_metric_info['patience_steps'] = 0
         elif metric_dict[1]['metric_sum'] == cur_best_p_at_1:
             if metric_dict[5]['metric_sum'] > cur_best_p_at_5:
                 best_metric_info['p@5'] = metric_dict[5]['metric_sum'] 
                 best_metric_info['model_file'] = model_file
+                best_metric_info['epoch'] = epoc
                 best_metric_info['patience_steps'] = 0
     
     best_metric_file = os.path.join(out_dir, 'best_metric_info.json') 
@@ -385,6 +387,7 @@ def train(model, retr_model,
     assert(Num_Answers == 1) 
     num_batch = len(train_dataloader)
     
+    opt.patience_steps = num_batch * 5 
     checkpoint_steps = min(opt.ckp_steps, num_batch)
    
     if coreset_method is not None:
@@ -534,10 +537,7 @@ def set_logger(opt):
     logger.addHandler(file_hander)
 
 def print_args(opts):
-    str_info = 'train_data=%s \n eval_data=%s \n n_context=%d \n checkpoint_dir=%s \n name=%s' % (
-                opts.train_data, opts.eval_data, opts.n_context, 
-                opts.checkpoint_dir, opts.name)
-    logger.info(str_info)  
+    logger.info(opts)
 
 def main(opt, coreset_method=None):
     init_global()
