@@ -28,6 +28,7 @@ import time
 from src.retr_utils import MetricRecorder, get_top_metrics
 import logging
 import torch.nn.functional as F
+import glob
 
 #logging.basicConfig(level=logging.ERROR)
 
@@ -117,8 +118,20 @@ def load_prior_model(opt):
                 'bias_sigma':item[1].bias.sigma.detach().to(opt.device),
             }
     return prior, state_dict
+
+def get_retr_multi_models(opt):
+    multi_model_map = {}
+    file_pattern = os.path.join(opt.multi_model_dir, '*_step_*_model.pt')
+    data_file_lst = glob.glob(file_pattern)
+    for data_file in data_file_lst:
+        base_name = os.path.basename(data_file)
+        step = int(base_name.split('_')[-2])
+        opt.fusion_retr_model = data_file
+        step_retr_model = get_retr_model(opt, apply_device=False)
+        multi_model_map[step] = step_retr_model
+    return multi_model_map  
     
-def get_retr_model(opt):
+def get_retr_model(opt, apply_device=True):
     if not opt.bnn:
         logger.info('Model, RetrModelMLE')
         retr_model = RetrModelMLE()
@@ -136,7 +149,8 @@ def get_retr_model(opt):
         state_dict = torch.load(opt.fusion_retr_model, map_location=opt.device)
         retr_model.load_state_dict(state_dict)
 
-    retr_model = retr_model.to(opt.device) 
+    if apply_device:
+        retr_model = retr_model.to(opt.device) 
     return retr_model
 
 def write_predictions(f_o_pred, item, top_idxes, scores):
@@ -156,6 +170,8 @@ def write_predictions(f_o_pred, item, top_idxes, scores):
         'scores':[float(scores[a]) for a in top_idxes]
     }
     f_o_pred.write(json.dumps(out_item) + '\n')
+
+
 
 def log_metrics(epoc, metric_rec,
                 batch_data, batch_score, batch_answers, 
@@ -177,7 +193,6 @@ def log_metrics(epoc, metric_rec,
         
         batch_sorted_idxes.append(sorted_idxes)
         answer_num_lst.append(len(sorted_idxes))
-        
         if f_o_pred is not None:
             write_predictions(f_o_pred, batch_data[b_idx], sorted_idxes, scores)
 
@@ -194,21 +209,18 @@ def log_metrics(epoc, metric_rec,
         str_info += 'p@%d=%.2f ' % (max_top, metric_dict[max_top]['metric_mean'])
     
     str_info += 'time=%.2f total=%.2f %d/%d' % (time_used, total_time, itr, num_batch)
-    
     if loss is not None:
         str_info += ' global_steps=%d' % global_steps
     logger.info(str_info)
-
     return batch_sorted_idxes
 
 def bnn_predict_2(model, batch_data, fusion_scores, fusion_states, passage_masks):
     retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False)
     return retr_scores
 
-def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks):
-    NUM_SAMPLES = 6
+def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks, num_samples=6):
     log_prob_lst = [] 
-    for sample_idx in range(NUM_SAMPLES):
+    for sample_idx in range(num_samples):
         retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=True)
         retr_log_probs = F.logsigmoid(torch.stack(retr_scores)).unsqueeze(0)
         log_prob_lst.append(retr_log_probs)
@@ -307,6 +319,52 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
     
     update_best_metric(epoc, metric_rec, model_tag, out_dir, model_file)
     retr_model.train()
+
+
+
+
+
+def evaluate_multiple_models(model, retr_model_map, dataset, dataloader, tokenizer, opt, out_dir=None):
+    model.eval()
+    f_o_map = {}
+    for step in retr_model_map: 
+        out_pred_file = os.path.join(out_dir, 'pred_step_%d.jsonl' % step)
+        f_o_pred = open(out_pred_file, 'w')
+        f_o_map[step] = f_o_pred
+   
+    model.overwrite_forward_crossattention()
+    model.reset_score_storage()
+    with torch.no_grad():
+        num_batch = len(dataloader)
+        bar_desc = 'multi_model evaluation'
+        for itr, fusion_batch in tqdm(enumerate(dataloader), total=num_batch, desc=bar_desc):
+            fusion_scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, dataset)
+            batch_data = get_batch_data(examples)
+            batch_size = len(batch_data)
+            for step in retr_model_map:
+                retr_model_step = retr_model_map[step].to(opt.device)
+                retr_model_step.eval()
+                f_o_step = f_o_map[step]
+                if not opt.bnn:
+                    retr_scores = retr_model_step(batch_data, fusion_scores, score_states, context_mask)    
+                else:
+                    retr_scores = bnn_predict(retr_model_step, batch_data, fusion_scores,
+                                              score_states, context_mask, num_samples=0)
+                for b_idx in range(batch_size):
+                    item_scores = retr_scores[b_idx]
+                    scores = item_scores.data.cpu().numpy()
+                    top_idx = np.argmax(scores)
+                    correct = batch_data[b_idx]['answers'][top_idx]['em'] 
+                    qid = batch_data[b_idx]['qid']
+                    out_item_info = {
+                        'step':step,
+                        'qid':qid,
+                        'correct':correct
+                    }
+                    f_o_step.write(json.dumps(out_item_info) + '\n')
+    for step in f_o_map:
+        f_o_map[step].close()
+
         
 def update_best_metric(epoc, metric_rec, model_tag, out_dir, model_file):
     metric_dict = metric_rec.metric_dict 
@@ -572,8 +630,11 @@ def main(opt, coreset_method=None):
    
     device = get_device(opt.cuda)
     opt.device = device
-    
-    retr_model = get_retr_model(opt)
+
+    if not opt.multi_model_eval:   
+        retr_model = get_retr_model(opt)
+    else:
+        retr_model_map = get_retr_multi_models(opt)
 
     eval_examples = None
     eval_dataset = None
@@ -596,7 +657,7 @@ def main(opt, coreset_method=None):
         eval_dataloader = DataLoader(
             eval_dataset, 
             sampler=eval_sampler, 
-            batch_size=1,
+            batch_size=opt.per_gpu_eval_batch_size,
             num_workers=0, 
             collate_fn=collator_function
         )
@@ -630,14 +691,20 @@ def main(opt, coreset_method=None):
         return msg_info
     else:
         out_dir = os.path.join(opt.checkpoint_dir, opt.name)
-        evaluate(0, model, retr_model,
-                eval_dataset, eval_dataloader,
-                tokenizer, opt, out_dir=out_dir)
-        msg_info = {
-            'state':True,
-            'out_dir':out_dir
-        }
-        return msg_info
+        if not opt.multi_model_eval:
+            evaluate(0, model, retr_model,
+                    eval_dataset, eval_dataloader,
+                    tokenizer, opt, out_dir=out_dir)
+            msg_info = {
+                'state':True,
+                'out_dir':out_dir
+            }
+            return msg_info
+        else:
+            evaluate_multiple_models(model, retr_model_map, eval_dataset, 
+                                     eval_dataloader, tokenizer, opt,
+                                     out_dir=out_dir)
+
 
 if __name__ == "__main__":
     options = Options()

@@ -89,10 +89,14 @@ class Options():
         self.parser.add_argument('--train_qas_file', type=str)
         self.parser.add_argument('--eval_qas_file', type=str)
         self.parser.add_argument('--eval_in_train', type=int, default=1)
+        self.parser.add_argument('--multi_model_eval', type=int, default=0)
+        self.parser.add_argument('--multi_model_dir', type=str)
 
         # dataset parameters
         self.parser.add_argument("--per_gpu_batch_size", default=1, type=int, 
                         help="Batch size per GPU/CPU for training.")
+        self.parser.add_argument("--per_gpu_eval_batch_size", default=1, type=int, 
+                        help="Batch size per GPU/CPU for evaluation.")
         self.parser.add_argument('--maxload', type=int, default=-1)
 
         self.parser.add_argument("--local_rank", type=int, default=-1,
