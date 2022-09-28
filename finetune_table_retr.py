@@ -339,7 +339,7 @@ def update_best_metric(epoc, metric_rec, model_tag, out_dir, model_file):
         f_o.write(json.dumps(best_metric_info))
 
 def should_stop_train(opt, coreset_method=None):
-    if coreset_method is None:
+    if (coreset_method is None) and ('patience_steps' in best_metric_info):
         return best_metric_info['patience_steps'] >= opt.patience_steps    
     else:
         return False
@@ -437,11 +437,12 @@ def train(model, retr_model,
                 model_tag = 'step_%d' % global_steps
                 out_dir = os.path.join(opt.checkpoint_dir, opt.name)
                 checkpoint_model_file = save_model(out_dir, retr_model, epoc, tag=model_tag, opt=opt) 
-                
-                evaluate(epoc, model, retr_model,
-                         eval_dataset, eval_dataloader,
-                         tokenizer, opt, model_tag=model_tag, out_dir=out_dir, 
-                         model_file=checkpoint_model_file)
+               
+                if eval_dataset is not None: 
+                    evaluate(epoc, model, retr_model,
+                             eval_dataset, eval_dataloader,
+                             tokenizer, opt, model_tag=model_tag, out_dir=out_dir, 
+                             model_file=checkpoint_model_file)
                 
                 if should_stop_train(opt, coreset_method=coreset_method):
                     break
@@ -578,7 +579,7 @@ def main(opt, coreset_method=None):
     eval_dataset = None
     eval_sampler = None
     eval_dataloader = None
-    if coreset_method is None: 
+    if (coreset_method is None) and (args.eval_data is not None): 
         eval_examples = src.data.load_data(
             opt.eval_data, 
             global_rank=opt.global_rank, 
