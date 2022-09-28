@@ -388,7 +388,7 @@ def train(model, retr_model,
     num_batch = len(train_dataloader)
     
     checkpoint_steps = min(opt.ckp_steps, num_batch)
-    opt.patience_steps = (num_batch / checkpoint_steps) * 3 
+    opt.patience_steps = (num_batch / checkpoint_steps) * 2 
    
     if coreset_method is not None:
         coreset_method.init_data(train_dataset.data)

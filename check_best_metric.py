@@ -51,7 +51,7 @@ def verify_best_step(args):
     best_step = int(parts[5])
     print('best_epoch =', best_epoch, 'best_step =', best_step)
     
-    patience_steps = int((args.N / 4 / 50) * 3)
+    patience_steps = int((args.N / 4 / 50) * 2)
     print('patience_steps = ', patience_steps)
     all_step_info, step_info_map = get_all_setps() 
     
@@ -64,6 +64,7 @@ def verify_best_step(args):
         C_1 = step_info['metric']['p@1'] > best_info['metric']['p@1']
         C_2 = (step_info['metric']['p@1'] == best_info['metric']['p@1']) and (step_info['metric']['p@5'] > best_info['metric']['p@5']) 
         if seq_no - best_seq > patience_steps:
+            print('stop step = %d' % step_info['step'])
             break
         if C_1 or C_2:
             actual_try_steps = seq_no - best_seq
