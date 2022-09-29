@@ -713,7 +713,7 @@ if __name__ == "__main__":
     args = options.parse()
     args.sql_batch_no = 0
     msg_info = main(args)
-    if msg_info.get('state', False):
+    if not msg_info.get('state', False):
         print(msg_info['msg'])
 
 
