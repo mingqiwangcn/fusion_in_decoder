@@ -640,7 +640,7 @@ def main(opt, coreset_method=None):
     eval_dataset = None
     eval_sampler = None
     eval_dataloader = None
-    if (coreset_method is None) and (args.eval_data is not None): 
+    if (coreset_method is None) and (opt.eval_data is not None): 
         eval_examples = src.data.load_data(
             opt.eval_data, 
             global_rank=opt.global_rank, 
