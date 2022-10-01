@@ -33,4 +33,4 @@ python ./finetune_table_retr.py \
     --text_maxlength 300 \
     --bnn ${bnn} \
     --prior_model ${prior} \
-    --per_gpu_eval_batch_size 4
+    --per_gpu_eval_batch_size 1
