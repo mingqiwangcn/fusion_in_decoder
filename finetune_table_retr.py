@@ -445,11 +445,11 @@ def train(model, retr_model,
     assert(Num_Answers == 1) 
     num_batch = len(train_dataloader)
     
-    checkpoint_steps = min(opt.ckp_steps, num_batch)
-    epoch_ckp_num = int(num_batch / checkpoint_steps)
-    if num_batch % checkpoint_steps:
-        epoch_ckp_num += 1
-    opt.patience_steps = epoch_ckp_num * 2 # if it does not improve in 2 continuous epoches, training stops 
+    checkpoint_steps = num_batch
+    #epoch_ckp_num = int(num_batch / checkpoint_steps)
+    #if num_batch % checkpoint_steps:
+    #    epoch_ckp_num += 1
+    opt.patience_steps = 2 # if it does not improve in 2 continuous epoches, training stops 
    
     if coreset_method is not None:
         coreset_method.init_data(train_dataset.data)
