@@ -15,7 +15,7 @@ if [ "${prior}" != "none" ]; then
     chk_name=${chk_name}_prior
 fi
 train_file=${exprt_dir}/${train_itr}/${exprt}/data_parts/${part_no}.jsonl
-eval_file=${exprt_dir}/dev/${exprt}/200.jsonl
+eval_file=${exprt_dir}/dev/${exprt}/fusion_retrieved_tagged.jsonl
 
 python ./finetune_table_retr.py \
     --do_train \
@@ -27,9 +27,10 @@ python ./finetune_table_retr.py \
     --cuda 0 \
     --name ${chk_name} \
     --checkpoint_dir output \
-    --ckp_steps 50 \
+    --ckp_steps 250 \
     --max_epoch 20 \
     --question_maxlength 50 \
     --text_maxlength 300 \
     --bnn ${bnn} \
-    --prior_model ${prior}
+    --prior_model ${prior} \
+    --per_gpu_eval_batch_size 4
