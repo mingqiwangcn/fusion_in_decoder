@@ -41,12 +41,12 @@ class BayesianLinear(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         # Weight parameters
-        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-0.2, 0.2))
-        self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-5,-4))
+        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-1, 1))
+        self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-5,5))
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         # Bias parameters
-        self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2, 0.2))
-        self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(-5,-4))
+        self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-1, 1))
+        self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(-5, 5))
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
         # Prior distributions
         self.weight_prior = None # GaussianPrior(weight_mu_prior, weight_sigma_prior)
@@ -57,9 +57,9 @@ class BayesianLinear(nn.Module):
     def set_prior(self, prior):
         if prior is None:
             weight_mu_prior = 0
-            weight_sigma_prior = 0.1
+            weight_sigma_prior = 1
             bias_mu_prior = 0
-            bias_sigma_prior = 0.1
+            bias_sigma_prior = 1
         else:
             weight_mu_prior = prior['weight_mu']
             weight_sigma_prior = prior['weight_sigma']
