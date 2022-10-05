@@ -218,7 +218,7 @@ def bnn_predict_2(model, batch_data, fusion_scores, fusion_states, passage_masks
     retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False)
     return retr_scores
 
-def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks, num_samples=6):
+def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks, num_samples=0):
     log_prob_lst = [] 
     for sample_idx in range(num_samples):
         retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=True)
@@ -469,7 +469,8 @@ def train(model, retr_model,
             batch_data = get_batch_data(examples)
             opts = {}
             assert(retr_model.training)
-            retr_scores = retr_model.sample_forward(batch_data, scores, score_states, context_mask, opts=opts) 
+            retr_scores = retr_model.sample_forward(batch_data, scores, score_states, 
+                                                    context_mask, num_samples=1, opts=opts) 
             batch_answers = get_batch_answers(batch_data) 
             loss = loss_fn(retr_scores, batch_answers, opts=opts)
             optimizer.zero_grad()
