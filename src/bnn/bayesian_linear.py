@@ -42,11 +42,11 @@ class BayesianLinear(nn.Module):
         self.out_features = out_features
         # Weight parameters
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-1, 1))
-        self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-5,5))
+        self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-3,0))
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         # Bias parameters
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-1, 1))
-        self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(-5, 5))
+        self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(-3, 0))
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
         # Prior distributions
         self.weight_prior = None # GaussianPrior(weight_mu_prior, weight_sigma_prior)

@@ -259,7 +259,7 @@ def evaluate_train(opt, model, retr_model, dataset, fusion_batch):
     return acc_lst
 
 def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt, 
-             model_tag=None, out_dir=None, model_file=None):
+             model_tag=None, out_dir=None, model_file=None, num_samples=0):
     #logger.info('Start evaluation')
     model.eval()
     retr_model.eval()
@@ -290,7 +290,8 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
             if not opt.bnn:
                 retr_scores = retr_model(batch_data, scores, score_states, context_mask)    
             else:
-                retr_scores = bnn_predict(retr_model, batch_data, scores, score_states, context_mask)
+                retr_scores = bnn_predict(retr_model, batch_data, scores, score_states, 
+                                          context_mask, num_samples=num_samples)
             batch_answers = get_batch_answers(batch_data)
              
             t2 = time.time()
@@ -698,7 +699,7 @@ def main(opt, coreset_method=None):
         if not opt.multi_model_eval:
             evaluate(0, model, retr_model,
                     eval_dataset, eval_dataloader,
-                    tokenizer, opt, out_dir=out_dir)
+                    tokenizer, opt, out_dir=out_dir, num_samples=6)
             msg_info = {
                 'state':True,
                 'out_dir':out_dir
