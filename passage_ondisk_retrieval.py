@@ -33,7 +33,7 @@ def retrieve_data(opt, index, data, model, tokenizer, f_o):
     batch_size = 1
     dataset = src.data.Dataset(data, ignore_context=True)
     collator = src.data.Collator(opt.question_maxlength, tokenizer)
-    dataloader = DataLoader(dataset, batch_size=batch_size, drop_last=False, num_workers=10, collate_fn=collator)
+    dataloader = DataLoader(dataset, batch_size=batch_size, drop_last=False, num_workers=1, collate_fn=collator)
     model.eval()
     with torch.no_grad():
         for batch in tqdm(dataloader):
