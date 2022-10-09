@@ -1,12 +1,12 @@
-if [ "$#" -ne 3 ]; then
-    echo "Usage: ./retr_passages_syt.sh <dataset> <experiment> <mode>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: ./retr_passages_syt.sh <dataset> <experiment> <mode> <passage>"
     exit
 fi
 
 dataset=$1
 expr=$2
 mode=$3
-file_name=merged_passages.jsonl
+file_name=$4.jsonl
 sql_expr=sql_data
 sql_data_dir=~/code/open_table_discovery/table2question/dataset/${dataset}/${sql_expr}
 
