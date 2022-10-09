@@ -707,7 +707,7 @@ def main(opt, coreset_method=None):
         if not opt.multi_model_eval:
             evaluate(0, model, retr_model,
                     eval_dataset, eval_dataloader,
-                    tokenizer, opt, out_dir=out_dir, num_samples=6)
+                    tokenizer, opt, out_dir=out_dir, num_samples=20)
             msg_info = {
                 'state':True,
                 'out_dir':out_dir
