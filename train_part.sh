@@ -15,7 +15,7 @@ if [ "${prior}" != "none" ]; then
     chk_name=${chk_name}_prior
 fi
 train_file=${exprt_dir}/${train_itr}/${exprt}/data_parts/${part_no}.jsonl
-eval_file=${exprt_dir}/dev/${exprt}/fusion_retrieved_tagged.jsonl
+eval_file=${exprt_dir}/dev/${exprt}/tag_0.jsonl
 
 python ./finetune_table_retr.py \
     --do_train \
