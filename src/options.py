@@ -79,6 +79,7 @@ class Options():
         self.parser.add_argument('--model_path', type=str, default='none', help='path for retraining')
       
         self.parser.add_argument('--bnn', type=int, help='Bayesian NN') 
+        self.parser.add_argument('--bnn_num_eval_sample', type=int, default=20)
         self.parser.add_argument('--fusion_retr_model', type=str) 
         self.parser.add_argument('--prior_model', type=str) 
         self.parser.add_argument('--max_epoch', type=int) 
