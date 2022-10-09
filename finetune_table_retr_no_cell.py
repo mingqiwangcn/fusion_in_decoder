@@ -185,13 +185,14 @@ def log_metrics(epoc, metric_rec,
         item_answer_lst = batch_answers[b_idx]
         sorted_ems = [item_answer_lst[idx]['em'] for idx in sorted_idxes]
         sorted_tables = [item_answer_lst[idx]['table_id'] for idx in sorted_idxes]
+        sorted_scores = [float(scores[a]) for a in sorted_idxes]
         top_metrics = sorted_ems[:5] #get_top_metrics(sorted_idxes, sorted_ems, batch_data[b_idx], 5)
         metric_rec.update(top_metrics)
         
         batch_sorted_idxes.append(sorted_idxes)
         answer_num_lst.append(len(sorted_idxes))
         if f_o_pred is not None:
-            write_predictions(f_o_pred, batch_data[b_idx], sorted_tables, scores)
+            write_predictions(f_o_pred, batch_data[b_idx], sorted_tables, sorted_scores)
 
     metric_dict = metric_rec.get_mean()
     str_info = ('epoc=%d ' % epoc) if epoc is not None else ''
@@ -215,14 +216,14 @@ def bnn_predict_2(model, batch_data, fusion_scores, fusion_states, passage_masks
     retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False)
     return retr_scores
 
-def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks, num_samples=0):
-    log_prob_lst = [] 
+def bnn_predict(model, batch_data, fusion_scores, fusion_states, passage_masks, num_samples=0, opts=None):
+    log_prob_lst = []
     for sample_idx in range(num_samples):
-        retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=True)
+        retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=True, opts=opts)
         retr_log_probs = F.logsigmoid(torch.stack(retr_scores)).unsqueeze(0)
         log_prob_lst.append(retr_log_probs)
     
-    retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False)
+    retr_scores = model(batch_data, fusion_scores, fusion_states, passage_masks, sample=False, opts=opts)
     retr_log_probs = F.logsigmoid(torch.stack(retr_scores)).unsqueeze(0)
     log_prob_lst.append(retr_log_probs)
     
@@ -284,11 +285,12 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
 
             scores, score_states, examples, context_mask = get_score_info(model, fusion_batch, dataset)
             batch_data = get_batch_data(examples)
+            opts = {} 
             if not opt.bnn:
                 retr_scores = retr_model(batch_data, scores, score_states, context_mask)    
             else:
                 retr_scores = bnn_predict(retr_model, batch_data, scores, score_states, 
-                                          context_mask, num_samples=num_samples)
+                                          context_mask, num_samples=num_samples, opts=opts)
             batch_answers = get_batch_answers(batch_data, opts)
              
             t2 = time.time()
