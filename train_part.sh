@@ -1,14 +1,14 @@
-if [ "$#" -ne 4 ]; then
-    echo "Usage: ./finetune_syt_retr_.sh <dataset> <part_no> <bnn> <prior>"
+if [ "$#" -ne 5 ]; then
+    echo "Usage: ./finetune_syt_retr_.sh <dataset> <part_no> <bnn> <prior> <repre>"
     exit
 fi
 dataset=$1
-exprt=rel_graph
 sql_expr=sql_data
 train_itr=train_0
 part_no=$2
 bnn=$3
 prior=$4
+exprt=$5
 exprt_dir=/home/cc/code/open_table_discovery/table2question/dataset/${dataset}/${sql_expr}
 chk_name=${dataset}_${part_no}_bnn_${bnn}
 if [ "${prior}" != "none" ]; then
