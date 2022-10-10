@@ -10,7 +10,7 @@ part_no=$2
 bnn=$3
 prior=$4
 exprt_dir=/home/cc/code/open_table_discovery/table2question/dataset/${dataset}/${sql_expr}
-chk_name=${dataset}_${part_no}_bnn_${bnn}
+chk_name=${dataset}_${part_no}_bnn_${bnn}_no_cell
 if [ "${prior}" != "none" ]; then
     chk_name=${chk_name}_prior
 fi
