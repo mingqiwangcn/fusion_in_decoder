@@ -21,7 +21,7 @@ python ./passage_ondisk_retrieval.py \
     --model_path ~/code/models/tqa_retriever \
     --index_file ./data/on_disk_index_${dataset}_${expr}/populated.index \
     --passage_file ./data/on_disk_index_${dataset}_${expr}/${file_name} \
-    --data ${query_file} 
+    --data ${query_file} \
     --output_path ${out_file} \
     --n-docs 100 \
     --min_tables 5 \
