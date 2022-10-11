@@ -15,7 +15,11 @@ if [ "${prior}" != "none" ]; then
     chk_name=${chk_name}_prior
 fi
 train_file=${exprt_dir}/${train_itr}/${exprt}/data_parts/${part_no}.jsonl
-eval_file=${exprt_dir}/dev/${exprt}/fusion_retrieved_tagged.jsonl
+eval_file_name=fusion_retrieved_tagged.jsonl
+if [ "${exprt}" = "graph_text" ]; then
+   eval_file_name=fusion_retrieved_tagged_merged.jsonl 
+fi
+eval_file=${exprt_dir}/dev/${exprt}/${eval_file_name}
 
 python ./finetune_table_retr.py \
     --do_train \
