@@ -14,8 +14,8 @@ then
     query_file=${sql_data_dir}/${mode}/fusion_query.jsonl
     out_file=${sql_data_dir}/${mode}/${expr}/fusion_retrieved.jsonl
 else
-    query_file=~/code/data/nq_tables/query/${mode}/fusion_query.jsonl
-    out_file=~/code/data/nq_tables/query/${mode}/${expr}/fusion_retrieved.jsonl
+    query_file=~/code/data/${dataset}/query/${mode}/fusion_query.jsonl
+    out_file=~/code/data/${dataset}/query/${mode}/${expr}/fusion_retrieved.jsonl
 fi     
 python ./passage_ondisk_retrieval.py \
     --model_path ~/code/models/tqa_retriever \
