@@ -593,8 +593,9 @@ def set_logger(opt):
     logger.setLevel(logging.INFO)
 
     logger.propagate = False
-    console = logging.StreamHandler()
-    logger.addHandler(console)
+    if opt.debug:
+        console = logging.StreamHandler()
+        logger.addHandler(console)
 
     file_path = os.path.join(opt.checkpoint_dir, opt.name, 'log.txt')
     file_hander = logging.FileHandler(file_path, 'w')
