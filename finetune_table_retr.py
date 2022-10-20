@@ -459,10 +459,10 @@ def train(model, retr_model,
         stat_coreset(model, retr_model, coreset_method,
                      step_info, opt, train_data_dict, train_dataset, None, collator, tokenizer)
     
-    epoc_bar_desc = 'sql %d epoch' % opt.sql_batch_no
+    epoc_bar_desc = 'data %d epoch' % opt.sql_batch_no
     for epoc in tqdm(range(opt.max_epoch), desc=epoc_bar_desc):
         metric_rec = MetricRecorder([1, 3, 5])
-        bar_desc = 'sql %d epoch %d train' % (opt.sql_batch_no, epoc)
+        bar_desc = 'data %d epoch %d train' % (opt.sql_batch_no, epoc)
         for itr, fusion_batch in tqdm(enumerate(train_dataloader), total=num_batch, desc=bar_desc):
             t1 = time.time()
             
