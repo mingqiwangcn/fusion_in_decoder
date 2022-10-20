@@ -279,7 +279,7 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
     with torch.no_grad():
         num_batch = len(dataloader)
         if opt.sql_batch_no is not None:
-            bar_desc = 'sql %d epoch %d evaluation' % (opt.sql_batch_no, epoc)
+            bar_desc = 'data %d epoch %d evaluation' % (opt.sql_batch_no, epoc)
         else:
             bar_desc = 'epoch %d evaluation' % epoc
         for itr, fusion_batch in tqdm(enumerate(dataloader), total=num_batch, desc=bar_desc):
