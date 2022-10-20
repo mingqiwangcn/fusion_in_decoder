@@ -267,9 +267,9 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
     f_o_pred = None
     f_o_metric = None
     if out_dir is not None:
-        out_pred_file = os.path.join(out_dir, 'pred_%s.jsonl' % model_tag)
+        out_pred_file = os.path.join(out_dir, 'pred_epoch_%d_%s.jsonl' % (epoc, model_tag))
         f_o_pred = open(out_pred_file, 'w')
-        out_metric_file = os.path.join(out_dir, 'metric_%s.jsonl' % model_tag)
+        out_metric_file = os.path.join(out_dir, 'metric_epoch_%d_%s.jsonl' % (epoc, model_tag))
         f_o_metric = open(out_metric_file, 'w')
    
     metric_rec = MetricRecorder([1, 5]) 
