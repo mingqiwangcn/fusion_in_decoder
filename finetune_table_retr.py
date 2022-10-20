@@ -399,7 +399,7 @@ def update_best_metric(epoc, metric_rec, model_tag, out_dir, model_file):
 
 def should_stop_train(opt, coreset_method=None):
     if (coreset_method is None) and ('patience_steps' in best_metric_info):
-        return best_metric_info['patience_steps'] >= opt.patience_steps    
+        return best_metric_info['patience_steps'] > opt.patience_steps    
     else:
         return False
 
@@ -450,7 +450,7 @@ def train(model, retr_model,
     #epoch_ckp_num = int(num_batch / checkpoint_steps)
     #if num_batch % checkpoint_steps:
     #    epoch_ckp_num += 1
-    opt.patience_steps = 2 # if it does not improve in 2 continuous epoches, training stops 
+    opt.patience_steps = opt.patience_epochs # if it does not improve in 2 continuous epoches, training stops 
    
     if coreset_method is not None:
         coreset_method.init_data(train_dataset.data)
