@@ -308,6 +308,7 @@ def evaluate(epoc, model, retr_model, dataset, dataloader, tokenizer, opt,
         for max_top in metric_dict:
             str_info += 'p@%d=%.2f ' % (max_top, metric_dict[max_top]['metric_mean'])
         logger.info(str_info)
+        print(str_info)
     
     eval_metric_info = {}
     for max_top in metric_dict:
