@@ -211,17 +211,15 @@ def main(args):
     index_out_dir = os.path.join(data_dir, 'on_disk_index_%s_%s' % (args.dataset, args.experiment))
     if os.path.exists(index_out_dir):
         msg_text = 'Index directory (%s) already exists' % index_out_dir
-        msg_info = {
-            'state':False,
-            'msg':msg_text
-        }
-        return msg_info
-         
+        print(msg_text)
+        return 
+    
     os.mkdir(index_out_dir)
     dataset_dir = os.path.join(args.work_dir, 'open_table_discovery/table2txt/dataset/')
     exptr_dir = os.path.join(dataset_dir, args.dataset, args.experiment)
     data_file = os.path.join(exptr_dir, args.emb_file)
     trained_index_file = os.path.join(index_out_dir, 'trained.index')
+    #import pdb; pdb.set_trace()
     create_train(data_file, trained_index_file)
     index_data(trained_index_file, data_file, index_out_dir)
     
@@ -242,7 +240,5 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    msg_info = main(args)
-    if not mag_info['state']:
-        print(msg_info['msg']) 
+    main(args)
     
